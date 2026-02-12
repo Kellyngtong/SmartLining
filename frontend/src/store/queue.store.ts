@@ -61,7 +61,7 @@ interface TicketStore {
   // Actions
   fetchTickets: () => Promise<void>;
   selectTicket: (ticket: Turno) => void;
-  createTicket: (colaId: number) => Promise<void>;
+  createTicket: (data: { id_cola: number; id_cliente?: number; estado?: string }) => Promise<void>;
   clearError: () => void;
 }
 
@@ -98,10 +98,10 @@ export const useTicketStore = create<TicketStore>(set => ({
     set({ selectedTicket: ticket });
   },
 
-  createTicket: async (colaId: number) => {
+  createTicket: async (data: { id_cola: number; id_cliente?: number; estado?: string }) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await apiClient.createTicket(colaId);
+      const response = await apiClient.createTicket(data);
       if (response.data) {
         const newTicket = TurnoMapper.toDomain(response.data as any);
         set(state => ({

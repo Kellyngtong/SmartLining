@@ -90,6 +90,11 @@ class ApiClient {
     return this.get(`/colas/${id}`);
   }
 
+  async getQueueInfo(queueId: number, ticketId?: number) {
+    const url = ticketId ? `/queue-info/${queueId}?turnoId=${ticketId}` : `/queue-info/${queueId}`;
+    return this.get(url);
+  }
+
   async createQueue(nombre: string, descripcion?: string, activa = true) {
     return this.post('/colas', { nombre, descripcion, activa });
   }
@@ -118,8 +123,8 @@ class ApiClient {
     return this.get(`/turnos/${id}`);
   }
 
-  async createTicket(id_cola: number, id_cliente?: number) {
-    return this.post('/turnos', { id_cola, id_cliente });
+  async createTicket(data: { id_cola: number; id_cliente?: number; estado?: string }) {
+    return this.post('/turnos', data);
   }
 
   async updateTicket(id: number, estado?: string, timestamps?: any) {
@@ -242,6 +247,15 @@ class ApiClient {
 
   async deleteValoracion(id: number) {
     return this.delete(`/valoraciones/${id}`);
+  }
+
+  // Client endpoints
+  async createCliente(data: { nombre: string; email?: string }) {
+    return this.post('/clientes', data);
+  }
+
+  async getClienteById(id: number) {
+    return this.get(`/clientes/${id}`);
   }
 
   // Health check
