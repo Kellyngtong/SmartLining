@@ -1,0 +1,227 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ========================
+// USUARIOS DEL SISTEMA
+// ========================
+// Almacena los usuarios autenticados del sistema (administradores y empleados).
+model Usuario {
+  id_usuario    Int       @id @default(autoincrement())
+  nombre        String    @db.VarChar(100)
+  email         String    @unique @db.VarChar(150)
+  password_hash String    @db.VarChar(255)
+  rol           UserRole
+  activo        Boolean   @default(true)
+  fecha_creacion DateTime  @default(now())
+
+  // Relaciones
+  atenciones    Atencion[]
+
+  @@map("usuario")
+}
+
+enum UserRole {
+  ADMINISTRADOR
+  EMPLEADO
+
+  @@map("user_role")
+}
+
+// ========================
+// CLIENTES
+// ========================
+// Representa a los clientes finales que solicitan un turno mediante código QR.
+model Cliente {
+  id_cliente    Int       @id @default(autoincrement())
+  fecha_creacion DateTime  @default(now())
+  origen        String    @default("QR") @db.VarChar(50)
+
+  // Relaciones
+  turnos        Turno[]
+
+  @@map("cliente")
+}
+
+// ========================
+// COLAS
+// ========================
+// Define las colas de atención configurables por el administrador.
+model Cola {
+  id_cola       Int       @id @default(autoincrement())
+  nombre        String    @db.VarChar(100)
+  descripcion   String?   @db.Text
+  activa        Boolean   @default(true)
+  fecha_creacion DateTime  @default(now())
+
+  // Relaciones
+  horarios      HorarioCola[]
+  turnos        Turno[]
+  eventos       ColaEvento[]
+
+  @@map("cola")
+}
+
+// ========================
+// HORARIOS DE COLAS
+// ========================
+// Define las franjas horarias en las que una cola está operativa.
+model HorarioCola {
+  id_horario    Int       @id @default(autoincrement())
+  id_cola       Int
+  dia_semana    DiaSemana
+  hora_inicio   DateTime  @db.Time()
+  hora_fin      DateTime  @db.Time()
+
+  // Relaciones
+  cola          Cola      @relation(fields: [id_cola], references: [id_cola], onDelete: Cascade)
+
+  @@map("horario_cola")
+}
+
+enum DiaSemana {
+  LUNES
+  MARTES
+  MIERCOLES
+  JUEVES
+  VIERNES
+  SABADO
+  DOMINGO
+
+  @@map("dia_semana")
+}
+
+// ========================
+// TURNOS
+// ========================
+// Representa cada solicitud de atención realizada por un cliente.
+// Registra los estados del turno y los hitos temporales.
+model Turno {
+  id_turno                    Int       @id @default(autoincrement())
+  id_cola                     Int
+  id_cliente                  Int
+  numero_turno                Int
+  estado                      EstadoTurno @default(EN_ESPERA)
+  fecha_hora_creacion         DateTime  @default(now())
+  fecha_hora_llamada          DateTime?
+  fecha_hora_inicio_atencion  DateTime?
+  fecha_hora_fin_atencion     DateTime?
+
+  // Relaciones
+  cola                        Cola      @relation(fields: [id_cola], references: [id_cola])
+  cliente                     Cliente   @relation(fields: [id_cliente], references: [id_cliente])
+  atencion                    Atencion?
+  valoracion                  Valoracion?
+
+  @@map("turno")
+}
+
+enum EstadoTurno {
+  EN_ESPERA
+  EN_ATENCION
+  FINALIZADO
+  CANCELADO
+
+  @@map("estado_turno")
+}
+
+// ========================
+// ATENCIONES
+// ========================
+// Registra la atención efectiva de un turno por parte de un empleado.
+// Permite asociar turnos a empleados, calcular la duración de la atención
+// y analizar el rendimiento operativo del personal.
+model Atencion {
+  id_atencion       Int       @id @default(autoincrement())
+  id_turno          Int       @unique
+  id_empleado       Int
+  duracion_atencion Int?      @db.Int // Duración en segundos
+  resultado         ResultadoAtencion
+
+  // Relaciones
+  turno             Turno     @relation(fields: [id_turno], references: [id_turno])
+  empleado          Usuario   @relation(fields: [id_empleado], references: [id_usuario])
+
+  @@map("atencion")
+}
+
+enum ResultadoAtencion {
+  ATENDIDO
+  CANCELADO
+
+  @@map("resultado_atencion")
+}
+
+// ========================
+// VALORACIONES
+// ========================
+// Almacena la valoración opcional realizada por el cliente tras finalizar
+// la atención. Permite medir la satisfacción del cliente y relacionarla
+// con tiempos de espera, atención y contexto operativo.
+model Valoracion {
+  id_valoracion      Int       @id @default(autoincrement())
+  id_turno           Int       @unique
+  puntuacion         Int       // CHECK (puntuacion BETWEEN 1 AND 5)
+  comentario         String?   @db.Text
+  fecha_valoracion   DateTime  @default(now())
+
+  // Relaciones
+  turno              Turno     @relation(fields: [id_turno], references: [id_turno])
+
+  @@map("valoracion")
+}
+
+// ========================
+// EVENTOS (Promociones, Festivos, Eventos)
+// ========================
+// Representa promociones, festivos o eventos especiales que pueden afectar
+// al funcionamiento de las colas.
+// Permite contextualizar las métricas y comparar situaciones especiales con días normales.
+model Evento {
+  id_evento      Int       @id @default(autoincrement())
+  tipo           TipoEvento
+  nombre         String    @db.VarChar(150)
+  descripcion    String?   @db.Text
+  fecha_inicio   DateTime  @db.Date()
+  fecha_fin      DateTime  @db.Date()
+
+  // Relaciones
+  colas          ColaEvento[]
+
+  @@map("evento")
+}
+
+enum TipoEvento {
+  PROMOCION
+  FESTIVO
+  EVENTO
+
+  @@map("tipo_evento")
+}
+
+// ========================
+// RELACIÓN N:M COLAS-EVENTOS
+// ========================
+// Tabla intermedia que implementa la relación N:M entre colas y eventos.
+// Permite asociar una misma promoción o evento a varias colas y analizar
+// su impacto específico en cada una de ellas.
+model ColaEvento {
+  id_cola   Int
+  id_evento Int
+
+  // Relaciones
+  cola      Cola      @relation(fields: [id_cola], references: [id_cola], onDelete: Cascade)
+  evento    Evento    @relation(fields: [id_evento], references: [id_evento], onDelete: Cascade)
+
+  @@id([id_cola, id_evento])
+  @@map("cola_evento")
+}

@@ -1,0 +1,40 @@
+Issue Type,Summary,Description,Epic Name,Epic Link,Priority
+
+Epic,Front Cliente (QR & Turnos),Funcionalidad del cliente sin registro mediante QR,FRONT CLIENTE,,High
+Epic,Panel Empleado (Gestión Cola),Gestión operativa de turnos en tiempo real,PANEL EMPLEADO,,High
+Epic,Panel Administrador (Dashboard & Configuración),Configuración del sistema y analítica,PANEL ADMIN,,High
+Epic,Analítica & KPIs,Generación de métricas y estadísticas de negocio,ANALITICA,,High
+Epic,Testing & Validación MVP,Validación funcional según criterios de aceptación,TESTING,,High
+Epic,Deploy & Documentación,Preparación entrega final y documentación,DEPLOY,,Medium
+
+Story,Generar turno mediante QR,Cliente puede obtener turno sin registro,,FRONT CLIENTE,High
+Story,Visualizar estado de cola en tiempo real,Mostrar posición y estado del turno,,FRONT CLIENTE,High
+Story,Enviar valoración tras atención,Formulario simple de satisfacción,,FRONT CLIENTE,Medium
+
+Story,Visualizar cola activa,Empleado ve lista ordenada de turnos,,PANEL EMPLEADO,High
+Story,Llamar siguiente turno,Acción para pasar turno a "en atención",,PANEL EMPLEADO,High
+Story,Finalizar turno,Marcar turno como finalizado,,PANEL EMPLEADO,High
+Story,Cancelar turno,Permitir cancelar turno,,PANEL EMPLEADO,Medium
+Story,Pausar/Reanudar cola,Control de flujo diario,,PANEL EMPLEADO,Medium
+
+Story,Configurar colas y horarios,Definir horarios de funcionamiento,,PANEL ADMIN,High
+Story,Gestión de promociones y festivos,Registrar eventos especiales,,PANEL ADMIN,Medium
+Story,Gestión de empleados,CRUD usuarios empleados,,PANEL ADMIN,High
+Story,Visualizar dashboard principal,Panel visual con métricas clave,,PANEL ADMIN,High
+
+Story,Calcular tiempo medio de espera,Cálculo automático por día y franja,,ANALITICA,High
+Story,Calcular tiempo medio de atención,Cálculo automático por turno,,ANALITICA,High
+Story,Clientes por día y franja horaria,Estadísticas de afluencia,,ANALITICA,High
+Story,Detección de picos de demanda,Identificación de horas punta,,ANALITICA,Medium
+Story,Comparativa eventos vs días normales,Análisis impacto promociones,,ANALITICA,Medium
+
+Story,Pruebas funcionales cliente,Validar flujo completo QR-turno-finalización,,TESTING,High
+Story,Pruebas funcionales empleado,Validar gestión completa cola,,TESTING,High
+Story,Pruebas dashboard y métricas,Validar cálculos KPI,,TESTING,High
+Story,Pruebas de aceptación según documento,Validación criterios punto 4.1,,TESTING,High
+
+Task,Configurar entorno producción,Preparar servidor y variables entorno,,DEPLOY,High
+Task,Configurar base de datos producción,Setup base de datos final,,DEPLOY,High
+Task,Deploy aplicación en servidor,Publicación versión MVP,,DEPLOY,High
+Task,Redactar documentación técnica,Arquitectura y estructura proyecto,,DEPLOY,Medium
+Task,Preparar memoria final proyecto,Documento entrega DAW,,DEPLOY,Medium
