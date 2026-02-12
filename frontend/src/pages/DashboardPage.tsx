@@ -39,7 +39,7 @@ export function DashboardPage() {
                   <h3>{queue.nombre}</h3>
                   <p>{queue.descripcion || 'Sin descripción'}</p>
                   <p style={{ fontSize: '12px', color: '#666' }}>
-                    Estado: {queue.activa ? '✅ Activa' : '❌ Inactiva'}
+                    Estado: {queue.activa ? 'Activa' : 'Inactiva'}
                   </p>
                 </div>
               ))}

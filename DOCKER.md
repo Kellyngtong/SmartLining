@@ -3,14 +3,22 @@
 ## Inicio Rápido
 
 ```bash
-# Hacer ejecutable el script
+# Hacer ejecutable el script (solo primera vez)
 chmod +x start.sh
 
-# Iniciar todo con Docker
+# Iniciar todo con Docker (ejecuta migraciones + seed por defecto)
 ./start.sh
+
+# O si no quieres reinicializar la BD:
+./start.sh --skip-init
 ```
 
 Accede a **http://localhost:3000** en tu navegador.
+
+### Parámetros del Script
+
+- `./start.sh` o `./start.sh --init` - **Por defecto**: Ejecuta migraciones y seed (reinicia BD)
+- `./start.sh --skip-init` - Levanta servicios sin ejecutar migraciones ni seed
 
 ## Estructura Docker
 
