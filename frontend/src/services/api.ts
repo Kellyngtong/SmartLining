@@ -51,7 +51,7 @@ class ApiClient {
     );
   }
 
-  // Métodos genéricos
+  // Métodos http
   async get<T>(url: string): Promise<ApiResponse<T>> {
     const response: AxiosResponse<ApiResponse<T>> = await this.instance.get(url);
     return response.data;

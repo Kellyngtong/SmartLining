@@ -8,7 +8,14 @@ interface CreateClientResponse {
   nombre?: string;
   email?: string;
 }
-
+/**
+ * JoinQueuePage component - handles the process of a client joining a queue
+ * This page is accessed via a QR code that contains the queue ID. It automatically creates a client and a ticket for that queue, then redirects to the ticket confirmation page.
+ * The component supports two ways of receiving the queue ID:
+ * 1. As a route parameter (e.g. /join-queue/123)
+ * 2. As a JSON payload in the `payload` query parameter (e.g. /join-queue?payload={"queueId":123})
+ * This flexibility allows it to work with different types of QR codes, including those that may only support encoding a URL with query parameters.
+ */
 export default function JoinQueuePage() {
   const { queueId } = useParams();
   const navigate = useNavigate();

@@ -4,6 +4,12 @@ import { useQueueStore } from '../store/queue.store';
 import ServiceTimeWidget from '../components/ServiceTimeWidget';
 import { apiClient } from '../services/api';
 
+/**
+* DashboardPage component - main admin dashboard showing queues and KPIs
+* This page is protected and only accessible to authenticated users. It displays a list of queues,
+* key performance indicators (KPIs) like total pending tickets and average service time, and allows
+* admins to select a queue to see more detailed stats and trends.
+*/
 export function DashboardPage() {
   const { user, logout } = useAuthStore();
   const { queues, fetchQueues, isLoading: queuesLoading } = useQueueStore();

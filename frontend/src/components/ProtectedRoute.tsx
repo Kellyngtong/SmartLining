@@ -6,6 +6,12 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
+/**
+* ProtectedRoute component - checks authentication before rendering children
+* If user is not authenticated, redirects to /login
+* This component is used to wrap protected routes in the main App router.
+*/
+
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, token } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);

@@ -50,8 +50,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-
-          {/* legacy routes kept for compatibility */}
+          
           <Route
             path="/dashboard"
             element={
@@ -69,7 +68,6 @@ function App() {
             }
           />
 
-          {/* New role-specific routes */}
           <Route
             path="/admin/dashboard"
             element={

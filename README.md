@@ -21,7 +21,7 @@ SmartLining/
 
 ## 🚀 Inicio Rápido
 
-### Con Docker (Recomendado)
+### Con Docker
 
 ```bash
 ./start.sh
@@ -29,7 +29,6 @@ SmartLining/
 
 Accede a **http://localhost:3000**
 
-Para más detalles sobre Docker: [DOCKER.md](DOCKER.md)
 
 ### Sin Docker (Desarrollo Local)
 
@@ -50,14 +49,6 @@ cd frontend
 npm install
 npm run dev          # Iniciar dev server (localhost:5173)
 ```
-
-## 📚 Documentación
-
-- [Plan de Implementación](docs/PLAN_IMPLEMENTACION.md) - 10 semanas
-- [Checklist](docs/CHECKLIST_IMPLEMENTACION.md) - Tareas por fase
-- [API Spec](docs/API_SPECIFICATION.md) - 30+ endpoints
-- [Setup](docs/SETUP_CONFIGURATION.md) - Guía detallada
-- [Migraciones](docs/MIGRACIONES_DATABASE.md) - BD con Prisma
 
 ## 🔐 Credenciales de Prueba
 

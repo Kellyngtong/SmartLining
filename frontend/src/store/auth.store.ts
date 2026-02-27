@@ -9,7 +9,7 @@ interface AuthStore {
   isLoading: boolean;
   error: string | null;
 
-  // Actions
+  // Actions authentication
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   restoreSession: () => Promise<void>;

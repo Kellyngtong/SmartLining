@@ -14,6 +14,11 @@ import { Line } from 'react-chartjs-2';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
+/**
+* ServiceTimeWidget component - shows a line chart of average service time over the last 14 days
+* This component is used in the Admin Dashboard to provide insights on service performance.
+*/
+
 export default function ServiceTimeWidget({
   colaId = 1,
   days = 14,

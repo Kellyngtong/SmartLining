@@ -11,6 +11,11 @@ interface Queue {
   descripcion: string;
   activa: boolean;
 }
+/**
+* AdminQRPage component - allows administrators to generate QR codes for their queues
+* Admins can create, edit, and delete queues, and generate QR codes that clients can scan to join the queue.
+* This page is protected and only accessible to users with the ADMINISTRADOR role.
+*/
 
 export default function AdminQRPage() {
   const navigate = useNavigate();

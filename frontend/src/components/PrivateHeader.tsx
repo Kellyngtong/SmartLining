@@ -3,6 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
 import '../styles/header.css';
 
+
+/**
+* PrivateHeader component - shows user info and logout button when authenticated
+* This component is used in the main App layout and only renders if a user is logged in.
+*/
+
 const PrivateHeader: React.FC = () => {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
