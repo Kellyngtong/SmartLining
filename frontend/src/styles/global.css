@@ -14,11 +14,11 @@ html {
 }
 
 :root {
-  --sl-yellow: #FFD700;
-  --sl-gold: #FFEA00;
-  --sl-amber: #FFB300;
-  --sl-black: #1A1A1A;
-  --sl-cream: #FAFAFA;
+  --sl-yellow: #ffd700;
+  --sl-gold: #ffea00;
+  --sl-amber: #ffb300;
+  --sl-black: #1a1a1a;
+  --sl-cream: #fafafa;
 }
 
 body {

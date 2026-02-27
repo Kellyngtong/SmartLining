@@ -98,8 +98,18 @@ export default function OperatorPage() {
   return (
     <div className="employee-root">
       <header className="employee-header">
-        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ color: 'var(--sl-gold)', fontWeight: 800 }}>SmartLining — Panel Empleado</div>
+        <div
+          style={{
+            maxWidth: 1200,
+            margin: '0 auto',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <div style={{ color: 'var(--sl-gold)', fontWeight: 800 }}>
+            SmartLining — Panel Empleado
+          </div>
           <div style={{ color: '#fff' }}>Operador</div>
         </div>
       </header>
@@ -108,30 +118,53 @@ export default function OperatorPage() {
         <aside className="employee-card">
           <div style={{ marginBottom: 8 }}>
             <label className="muted">Seleccionar cola</label>
-            <select className="queue-select" value={selectedQueue ?? ''} onChange={e => setSelectedQueue(Number(e.target.value) || null)}>
+            <select
+              className="queue-select"
+              value={selectedQueue ?? ''}
+              onChange={e => setSelectedQueue(Number(e.target.value) || null)}
+            >
               {queues.map(q => (
-                <option key={q.id_cola} value={q.id_cola}>{q.nombre}</option>
+                <option key={q.id_cola} value={q.id_cola}>
+                  {q.nombre}
+                </option>
               ))}
             </select>
           </div>
 
           <div style={{ display: 'grid', gap: 8 }}>
-            <div className="kpi">Pendientes <span>{totalPending}</span></div>
+            <div className="kpi">
+              Pendientes <span>{totalPending}</span>
+            </div>
             <div className="employee-card">
               <div style={{ fontSize: 12, color: '#666' }}>Tiempo medio (min)</div>
-              <div style={{ fontSize: 20, fontWeight: 800 }}>{serviceAvg ? serviceAvg.toFixed(1) : '—'}</div>
+              <div style={{ fontSize: 20, fontWeight: 800 }}>
+                {serviceAvg ? serviceAvg.toFixed(1) : '—'}
+              </div>
             </div>
             <div className="employee-card">
               <div style={{ fontSize: 12, color: '#666' }}>Última llamada</div>
-              <div style={{ fontSize: 16 }}>{calledTicket ? `#${calledTicket.numero_turno}` : '—'}</div>
+              <div style={{ fontSize: 16 }}>
+                {calledTicket ? `#${calledTicket.numero_turno}` : '—'}
+              </div>
             </div>
           </div>
         </aside>
 
         <main className="employee-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 12,
+            }}
+          >
             <h3 style={{ margin: 0 }}>Turnos en espera</h3>
-            <button className="call-next-btn" onClick={handleCallNext} disabled={!selectedQueue || loading}>
+            <button
+              className="call-next-btn"
+              onClick={handleCallNext}
+              disabled={!selectedQueue || loading}
+            >
               {loading ? 'Procesando...' : 'LLAMAR SIGUIENTE'}
             </button>
           </div>
@@ -139,13 +172,30 @@ export default function OperatorPage() {
           <div className="ticket-list">
             {pending.length === 0 && <p className="muted">No hay turnos en espera</p>}
             {pending.map((t: any) => (
-              <div key={t.id_turno} className={`ticket-item ${calledTicket?.id_turno === t.id_turno ? 'called' : ''}`}>
+              <div
+                key={t.id_turno}
+                className={`ticket-item ${calledTicket?.id_turno === t.id_turno ? 'called' : ''}`}
+              >
                 <div>
                   <div className="ticket-number">#{t.numero_turno}</div>
-                  <div className="ticket-meta">Cliente {t.id_cliente} · {new Date(t.fecha_hora_creacion).toLocaleTimeString()}</div>
+                  <div className="ticket-meta">
+                    Cliente {t.id_cliente} · {new Date(t.fecha_hora_creacion).toLocaleTimeString()}
+                  </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <button onClick={() => { navigate('/ticket-confirmation', { state: { ticketId: t.id_turno } }); }} style={{ background: 'transparent', border: 'none', color: 'var(--sl-amber)', cursor: 'pointer' }}>Ver</button>
+                  <button
+                    onClick={() => {
+                      navigate('/ticket-confirmation', { state: { ticketId: t.id_turno } });
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--sl-amber)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Ver
+                  </button>
                 </div>
               </div>
             ))}
@@ -156,10 +206,18 @@ export default function OperatorPage() {
           <div className="detail-title">Detalle del turno</div>
           {calledTicket ? (
             <div style={{ marginTop: 12 }}>
-              <p><strong>Turno:</strong> #{calledTicket.numero_turno}</p>
-              <p><strong>Cliente:</strong> {calledTicket.id_cliente}</p>
-              <p><strong>Cola:</strong> {calledTicket.id_cola}</p>
-              <p><strong>Estado:</strong> {calledTicket.estado}</p>
+              <p>
+                <strong>Turno:</strong> #{calledTicket.numero_turno}
+              </p>
+              <p>
+                <strong>Cliente:</strong> {calledTicket.id_cliente}
+              </p>
+              <p>
+                <strong>Cola:</strong> {calledTicket.id_cola}
+              </p>
+              <p>
+                <strong>Estado:</strong> {calledTicket.estado}
+              </p>
             </div>
           ) : (
             <p className="muted">Llama a un turno para ver detalles aquí</p>
