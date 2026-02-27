@@ -8,7 +8,7 @@ export function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      const destination = user.rol === 'EMPLEADO' ? '/operator' : '/dashboard';
+      const destination = user.rol === 'EMPLEADO' ? '/employee/operator' : '/admin/dashboard';
       navigate(destination);
     }
   }, [user, navigate]);

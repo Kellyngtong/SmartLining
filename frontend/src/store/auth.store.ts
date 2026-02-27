@@ -88,10 +88,11 @@ export const useAuthStore = create<AuthStore>(set => ({
       try {
         const userData = JSON.parse(userStr) as any;
         const user = UsuarioMapper.toDomain(userData);
-        set({ token, user });
 
-        // Validar token con el servidor
+        // Validar token con el servidor antes de marcar la sesión como restaurada
         await apiClient.getMe();
+
+        set({ token, user });
       } catch {
         // Token inválido
         localStorage.removeItem('authToken');

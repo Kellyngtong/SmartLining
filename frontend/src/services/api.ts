@@ -5,6 +5,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 class ApiClient {
   private instance: AxiosInstance;
+  private static isHandling401 = false;
 
   constructor() {
     this.instance = axios.create({
@@ -28,15 +29,22 @@ class ApiClient {
       error => Promise.reject(error)
     );
 
-    // Interceptor para manejar errores de respuesta
+    // Interceptor para manejar errores de respuesta (evita reentrada en 401)
     this.instance.interceptors.response.use(
       response => response,
       (error: AxiosError) => {
-        if (error.response?.status === 401) {
-          // Token expirado o inválido
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('user');
-          window.location.href = '/login';
+        const status = error.response?.status;
+        if (status === 401) {
+          // Evitar que múltiples respuestas 401 disparen redirect repetido
+          if (!ApiClient.isHandling401) {
+            ApiClient.isHandling401 = true;
+            try {
+              localStorage.removeItem('authToken');
+              localStorage.removeItem('user');
+            } catch (e) {
+              console.error('Error clearing localStorage on 401', e);
+            }
+          }
         }
         return Promise.reject(error);
       }

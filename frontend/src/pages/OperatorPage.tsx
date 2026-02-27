@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { apiClient } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 import '../styles/employee.css';
@@ -12,6 +12,8 @@ export default function OperatorPage() {
   const [nextTicketId, setNextTicketId] = useState<number | null>(null);
   const [serviceAvg, setServiceAvg] = useState<number | null>(null);
   const navigate = useNavigate();
+  const [animateCalled, setAnimateCalled] = useState(false);
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
     const loadQueues = async () => {
@@ -32,6 +34,7 @@ export default function OperatorPage() {
   useEffect(() => {
     if (!selectedQueue) return;
     let mounted = true;
+
     const loadPending = async () => {
       try {
         setLoading(true);
@@ -72,6 +75,61 @@ export default function OperatorPage() {
     loadServiceAvg();
   }, [selectedQueue]);
 
+  // Play butcher-style beep sequence and animate when a ticket is called
+  useEffect(() => {
+    if (!calledTicket) return;
+
+    setAnimateCalled(true);
+
+    const playSequence = async (count = 3) => {
+      try {
+        const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
+        const ctx: AudioContext = new AudioCtx();
+        audioCtxRef.current = ctx;
+
+        const playBeep = (freq: number, dur = 120) => {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.type = 'square';
+          o.frequency.value = freq;
+          g.gain.value = 0.0008;
+          o.connect(g);
+          g.connect(ctx.destination);
+          const now = ctx.currentTime;
+          o.start(now);
+          g.gain.setValueAtTime(g.gain.value, now);
+          g.gain.exponentialRampToValueAtTime(0.0001, now + dur / 1000);
+          o.stop(now + dur / 1000 + 0.02);
+        };
+
+        for (let i = 0; i < count; i++) {
+          setTimeout(() => playBeep(1200 - i * 150, 120), i * 240);
+        }
+
+        // close context after last beep
+        setTimeout(
+          () => {
+            try {
+              ctx.close();
+              audioCtxRef.current = null;
+            } catch (e) {
+              // ignore
+            }
+          },
+          count * 240 + 300
+        );
+      } catch (e) {
+        // fallback: try using Audio element (not provided)
+        console.warn('AudioContext not available', e);
+      }
+    };
+
+    playSequence(3);
+
+    const t = setTimeout(() => setAnimateCalled(false), 1400);
+    return () => clearTimeout(t);
+  }, [calledTicket]);
+
   const handleCallNext = async () => {
     if (!selectedQueue) return;
     setLoading(true);
@@ -83,11 +141,9 @@ export default function OperatorPage() {
         // refresh pending
         const r = await apiClient.getTickets(1, 200, 'EN_ESPERA', selectedQueue);
         const payload: any = r?.data ?? r;
-          const refreshed = payload?.data ?? payload ?? [];
-          setPending(refreshed);
-          setNextTicketId(refreshed.length > 0 ? refreshed[0].id_turno : null);
-        // navigate to ticket confirmation view for operator if needed
-        navigate('/ticket-confirmation', { state: { ticketId: ticket.id_turno || ticket.id } });
+        const refreshed = payload?.data ?? payload ?? [];
+        setPending(refreshed);
+        setNextTicketId(refreshed.length > 0 ? refreshed[0].id_turno : null);
       } else {
         alert('No hay turnos en espera');
       }
@@ -163,7 +219,9 @@ export default function OperatorPage() {
               <div className="current-ticket-inner">
                 <div className="current-label">TURNO ACTUAL</div>
                 <div className="current-number">#{calledTicket.numero_turno}</div>
-                <div className="current-meta">Cliente {calledTicket.id_cliente} · Cola {calledTicket.id_cola}</div>
+                <div className="current-meta">
+                  Cliente {calledTicket.id_cliente} · Cola {calledTicket.id_cola}
+                </div>
               </div>
             </div>
           )}
@@ -203,7 +261,14 @@ export default function OperatorPage() {
                 <div style={{ textAlign: 'right' }}>
                   <button
                     onClick={() => {
-                      navigate('/ticket-confirmation', { state: { ticketId: t.id_turno } });
+                      try {
+                        const base =
+                          (import.meta as any).env.VITE_APP_URL || window.location.origin;
+                        const cleanBase = String(base).replace(/\/$/, '');
+                        window.location.href = `${cleanBase}/ticket-confirmation?ticketId=${t.id_turno}`;
+                      } catch (e) {
+                        navigate('/ticket-confirmation', { state: { ticketId: t.id_turno } });
+                      }
                     }}
                     style={{
                       background: 'transparent',

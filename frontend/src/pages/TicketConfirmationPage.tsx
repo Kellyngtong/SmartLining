@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { useRef, useState, useEffect } from 'react';
 import { apiClient } from '../services/api';
@@ -145,11 +145,6 @@ export default function TicketConfirmationPage() {
   return (
     <div style={styles.container}>
       <div style={styles.ticketCard}>
-        <div style={styles.header}>
-          <h1 style={styles.title}>📱 SmartLining</h1>
-          <p style={styles.subtitle}>Tu Turno Confirmado</p>
-        </div>
-
         <div style={styles.confirmationContent}>
           <div style={styles.ticketNumber}>
             <p style={styles.label}>Tu número de turno</p>
@@ -195,10 +190,6 @@ export default function TicketConfirmationPage() {
               <span style={styles.detailValue}>{queueName || 'Cola ' + queueId}</span>
             </div>
             <div style={styles.detail}>
-              <span style={styles.detailLabel}>Nombre:</span>
-              <span style={styles.detailValue}>{clientName}</span>
-            </div>
-            <div style={styles.detail}>
               <span style={styles.detailLabel}>Estado:</span>
               <span style={styles.detailValue}>
                 🟢{' '}
@@ -211,20 +202,6 @@ export default function TicketConfirmationPage() {
               <span style={styles.detailLabel}>Hora:</span>
               <span style={styles.detailValue}>{new Date().toLocaleTimeString('es-ES')}</span>
             </div>
-          </div>
-
-          <div style={styles.qrContainer} ref={qrRef}>
-            <p style={styles.qrLabel}>Código QR del Turno</p>
-            <QRCodeSVG
-              value={JSON.stringify({
-                ticketId,
-                queueId,
-                clientName,
-              })}
-              size={200}
-              level="H"
-              includeMargin
-            />
           </div>
 
           <div style={styles.instructions}>
@@ -261,6 +238,12 @@ export default function TicketConfirmationPage() {
           <p style={{ ...styles.footerText, marginTop: '15px', fontSize: '12px' }}>
             SmartLining © 2026 - Gestión de Colas Virtuales
           </p>
+          <Link
+            to="/privacy"
+            style={{ textAlign: 'center', color: '#999', fontSize: '12px', alignSelf: 'center' }}
+          >
+            Política de Privacidad
+          </Link>
         </div>
       </div>
     </div>

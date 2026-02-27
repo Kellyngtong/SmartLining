@@ -71,7 +71,7 @@
   padding: 18px;
   background: linear-gradient(90deg, #fff3b0 0%, #ffd54f 100%);
   color: var(--sl-black);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 .current-ticket-inner {
   display: flex;
@@ -92,6 +92,17 @@
 .current-meta {
   font-size: 14px;
   color: #5a4630;
+}
+
+.current-ticket.ring, .current-ticket.ring .current-number {
+  animation: pulse 1.2s ease-out;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+  30% { transform: scale(1.04); box-shadow: 0 14px 36px rgba(0,0,0,0.12); }
+  60% { transform: scale(0.98); box-shadow: 0 6px 18px rgba(0,0,0,0.06); }
+ 100% { transform: scale(1); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
 }
 .ticket-number {
   font-size: 18px;

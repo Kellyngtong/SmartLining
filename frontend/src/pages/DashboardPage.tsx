@@ -1,15 +1,115 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuthStore } from '../store/auth.store';
 import { useQueueStore } from '../store/queue.store';
 import ServiceTimeWidget from '../components/ServiceTimeWidget';
+import { apiClient } from '../services/api';
 
 export function DashboardPage() {
   const { user, logout } = useAuthStore();
   const { queues, fetchQueues, isLoading: queuesLoading } = useQueueStore();
+  const [totalPending, setTotalPending] = useState<number | null>(null);
+  const [avgServiceMin, setAvgServiceMin] = useState<number | null>(null);
+  const [selectedQueue, setSelectedQueue] = useState<any | null>(null);
+  const [queueStats, setQueueStats] = useState<any | null>(null);
+  const [trendPeriod, setTrendPeriod] = useState<number>(7);
+  const [loadingQueueStats, setLoadingQueueStats] = useState<boolean>(false);
+
+  const isToday = (d?: any) => {
+    if (!d) return false;
+    const value = typeof d === 'string' || typeof d === 'number' ? new Date(d) : d;
+    const date = value instanceof Date ? value : new Date(value);
+    if (isNaN(date.getTime())) return false;
+    const now = new Date();
+    return (
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth() &&
+      date.getDate() === now.getDate()
+    );
+  };
+
+  const normalizeTrend = (payload: any) => {
+    // Support backend shape: { success: true, data: { series: [{date, avgMinutes}] } }
+    const series = payload?.data?.series ?? payload?.series ?? payload?.data ?? payload ?? [];
+    if (!Array.isArray(series)) return [];
+    return series.map((item: any) => {
+      const v = item.avgMinutes ?? item.value ?? item.y ?? null;
+      return v == null ? 0 : Number(v);
+    });
+  };
+
+  const selectQueueAndLoad = async (q: any) => {
+    setSelectedQueue(q);
+    setLoadingQueueStats(true);
+    try {
+      // tickets for queue
+      const ticketsResp: any = await apiClient.getQueueTickets(q.id_cola, 1, 1000);
+      const tickets = (ticketsResp?.data ?? ticketsResp) || [];
+
+      // compute counts (try multiple possible field names)
+      const items = Array.isArray(tickets?.data) ? tickets.data : Array.isArray(tickets) ? tickets : [];
+      const today = items.filter((t: any) =>
+        isToday(
+          t.fecha_hora_creacion ?? t.fecha_hora_creacion ?? t.created_at ?? t.createdAt ?? t.fecha_creacion ?? t.fecha
+        )
+      );
+      const enteredToday = today.length;
+      const attended = items.filter((t: any) => {
+        const s = (t.estado ?? t.status ?? '').toString().toLowerCase();
+        return s.includes('atend') || s.includes('served') || s.includes('finaliz');
+      }).length;
+      const waiting = items.filter((t: any) => {
+        const s = (t.estado ?? t.status ?? '').toString().toLowerCase();
+        return s.includes('esper') || s.includes('wait');
+      }).length;
+
+      // service time trend
+      const stResp: any = await apiClient.getServiceTimeTrend(q.id_cola, trendPeriod);
+      const stPayload = stResp?.data ?? stResp ?? {};
+      const trend = normalizeTrend(stPayload);
+      // compute estimated average from series if provided
+      const rawSeries = stPayload?.series ?? stPayload?.data ?? [];
+      const vals = Array.isArray(rawSeries) ? rawSeries.map((s: any) => s.avgMinutes).filter((v: any) => v != null) : [];
+      const estimated = vals.length > 0 ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : null;
+
+      setQueueStats({ enteredToday, attended, waiting, trend, estimated });
+    } catch (e) {
+      setQueueStats(null);
+    } finally {
+      setLoadingQueueStats(false);
+    }
+  };
 
   useEffect(() => {
     fetchQueues();
   }, [fetchQueues]);
+
+  // Load KPIs
+  useEffect(() => {
+    let mounted = true;
+    const loadKpis = async () => {
+      try {
+        // total pending across all queues
+        const resp: any = await apiClient.getTickets(1, 1000, 'EN_ESPERA');
+        const pendingList = (resp?.data ?? resp) as any;
+        const items = pendingList?.data ?? pendingList ?? [];
+        if (mounted) setTotalPending(items.length);
+
+        // avg service time for first queue (fallback)
+        const qId = queues && queues.length > 0 ? queues[0].id_cola : undefined;
+        if (qId) {
+          const st: any = await apiClient.getServiceTimeTrend(qId, 30);
+          const payload: any = st?.data ?? st;
+          const avg = payload?.average ?? null;
+          if (mounted) setAvgServiceMin(avg ?? null);
+        } else {
+          if (mounted) setAvgServiceMin(null);
+        }
+      } catch (e) {
+        // ignore failures but keep UI usable
+      }
+    };
+    loadKpis();
+  }, [queues]);
 
   if (!user) {
     return <div>Acceso denegado</div>;
@@ -18,7 +118,8 @@ export function DashboardPage() {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <h1 style={styles.title}>SmartLining Dashboard</h1>
+        <img src="/assets/logo.jpg" alt="Logo" style={{ width: 54, height: 54, marginRight: 12, borderRadius: 14 }} />
+        <h1 style={styles.title}>Admin Dashboard</h1>
         <div style={styles.userInfo}>
           <span>{user.nombre}</span>
           <button onClick={() => (window.location.href = '/admin/qr')} style={styles.secondaryBtn}>
@@ -31,35 +132,137 @@ export function DashboardPage() {
       </header>
 
       <main style={styles.main}>
-        <section style={styles.section}>
-          <h2>Colas Disponibles</h2>
+        <section style={{ ...styles.section, paddingBottom: 24 }}>
+          <h2>Resumen</h2>
+          <div style={styles.kpiRow}>
+            <div style={styles.kpiCard}>
+              <div style={styles.kpiLabel}>Colas activas</div>
+              <div style={styles.kpiValue}>{queues?.length ?? '—'}</div>
+            </div>
+
+            <div style={styles.kpiCard}>
+              <div style={styles.kpiLabel}>Turnos en espera</div>
+              <div style={styles.kpiValue}>{totalPending ?? '—'}</div>
+            </div>
+
+            <div style={styles.kpiCard}>
+              <div style={styles.kpiLabel}>Tiempo medio (min)</div>
+              <div style={styles.kpiValue}>{avgServiceMin ? Number(avgServiceMin).toFixed(1) : '—'}</div>
+            </div>
+          </div>
+
+          <h3 style={{ marginTop: 18 }}>Colas Disponibles</h3>
 
           {queuesLoading ? (
             <p>Cargando colas...</p>
           ) : queues.length > 0 ? (
-            <div style={styles.gridContainer}>
-              {queues.map(queue => (
-                <div key={queue.id_cola} style={styles.card}>
-                  <h3>{queue.nombre}</h3>
-                  <p>{queue.descripcion || 'Sin descripción'}</p>
-                  <p style={{ fontSize: '12px', color: '#666' }}>
-                    Estado: {queue.activa ? 'Activa' : 'Inactiva'}
-                  </p>
-                </div>
-              ))}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 420px', gap: 16, marginTop: 12 }}>
+              <div style={styles.gridContainer}>
+                {queues.map((queue: any) => {
+                  const selected = selectedQueue?.id_cola === queue.id_cola;
+                  return (
+                    <div
+                      key={queue.id_cola}
+                      onClick={() => selectQueueAndLoad(queue)}
+                      role="button"
+                      style={{
+                        ...styles.card,
+                        cursor: 'pointer',
+                        border: selected ? `2px solid var(--sl-yellow)` : styles.card.border,
+                        boxShadow: selected ? '0 6px 20px rgba(255,215,0,0.12)' : undefined,
+                        transform: selected ? 'translateY(-2px)' : undefined,
+                      }}
+                    >
+                      <h3 style={{ color: selected ? 'var(--sl-black)' : 'inherit' }}>{queue.nombre}</h3>
+                      <p>{queue.descripcion || 'Sin descripción'}</p>
+                      <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+                        Estado: {queue.activa ? 'Activa' : 'Inactiva'}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ padding: 12 }}>
+                {selectedQueue ? (
+                  <div style={{ background: 'var(--color-bg)', padding: 12, borderRadius: 8, border: '1px solid var(--color-border)' }}>
+                    <h3 style={{ marginTop: 0 }}>{selectedQueue.nombre}</h3>
+                    <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+                      <div style={{ flex: 1, padding: 12, background: 'white', borderRadius: 8, textAlign: 'center' }}>
+                        <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Estimado espera (min)</div>
+                        <div style={{ fontSize: 22, fontWeight: 700 }}>{queueStats?.estimated ? Number(queueStats.estimated).toFixed(1) : '—'}</div>
+                      </div>
+                      <div style={{ flex: 1, padding: 12, background: 'white', borderRadius: 8, textAlign: 'center' }}>
+                        <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Entradas hoy (QR)</div>
+                        <div style={{ fontSize: 22, fontWeight: 700 }}>{queueStats?.enteredToday ?? '—'}</div>
+                      </div>
+                      <div style={{ flex: 1, padding: 12, background: 'white', borderRadius: 8, textAlign: 'center' }}>
+                        <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Atendidos</div>
+                        <div style={{ fontSize: 22, fontWeight: 700 }}>{queueStats?.attended ?? '—'}</div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <div style={{ color: 'var(--color-text-secondary)' }}>Últimos {trendPeriod} días</div>
+                      <div>
+                        <button className="btn-secondary" onClick={() => { setTrendPeriod(7); selectQueueAndLoad(selectedQueue); }} style={{ marginRight: 8 }}>7d</button>
+                        <button className="btn-secondary" onClick={() => { setTrendPeriod(30); selectQueueAndLoad(selectedQueue); }}>30d</button>
+                      </div>
+                    </div>
+
+                    <div style={{ height: 120, background: 'white', padding: 8, borderRadius: 8 }}>
+                      {loadingQueueStats ? (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }} className="spinner" />
+                      ) : (
+                        <TrendChart data={queueStats?.trend ?? []} />
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ padding: 12, color: 'var(--color-text-secondary)' }}>Selecciona una cola para ver KPIs</div>
+                )}
+              </div>
             </div>
           ) : (
             <p>No hay colas disponibles</p>
           )}
-        </section>
 
-        <section style={{ ...styles.section, display: 'flex', gap: 16 }}>
-          <ServiceTimeWidget colaId={queues.length > 0 ? queues[0].id_cola : 1} days={14} />
+          <div style={{ marginTop: 18 }}>
+            <ServiceTimeWidget colaId={queues.length > 0 ? queues[0].id_cola : 1} days={14} />
+          </div>
         </section>
       </main>
     </div>
   );
 }
+
+  function TrendChart({ data }: { data: number[] }) {
+    if (!data || data.length === 0) {
+      return <div style={{ color: 'var(--color-text-secondary)', padding: 12 }}>No hay datos</div>;
+    }
+    const w = Math.max(200, data.length * 12);
+    const h = 80;
+    const max = Math.max(...data);
+    if (!max || max <= 0) {
+      return <div style={{ color: 'var(--color-text-secondary)', padding: 12 }}>No hay datos</div>;
+    }
+    const barWidth = Math.max(6, Math.floor(w / data.length) - 4);
+
+    return (
+      <svg width="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
+        {data.map((v, i) => {
+          const barH = (v / max) * (h - 10);
+          const x = i * (barWidth + 4) + 6;
+          const y = h - barH;
+          return (
+            <g key={i}>
+              <rect x={x} y={y} width={barWidth} height={barH} rx={3} fill={i === data.length - 1 ? 'var(--sl-yellow)' : 'rgba(26,26,26,0.12)'} />
+            </g>
+          );
+        })}
+      </svg>
+    );
+  }
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
@@ -67,7 +270,7 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: '#f5f5f5',
   },
   header: {
-    backgroundColor: '#007bff',
+    backgroundColor: 'var(--sl-black)',
     color: 'white',
     padding: '20px',
     display: 'flex',
@@ -77,6 +280,7 @@ const styles: Record<string, React.CSSProperties> = {
   title: {
     margin: 0,
     fontSize: '24px',
+    alignSelf: 'flex-start',
   },
   userInfo: {
     display: 'flex',
@@ -106,6 +310,24 @@ const styles: Record<string, React.CSSProperties> = {
     maxWidth: '1200px',
     margin: '0 auto',
   },
+  kpiRow: {
+    display: 'flex',
+    gap: 12,
+    marginTop: 12,
+    flexWrap: 'wrap',
+  },
+  kpiCard: {
+    minWidth: 180,
+    flex: '1 1 180px',
+    background: 'linear-gradient(90deg, rgba(255,179,0,0.04), rgba(250,250,250,0.6))',
+    border: '1px solid rgba(255,179,0,0.08)',
+    padding: 14,
+    borderRadius: 8,
+    boxShadow: 'var(--shadow-soft)',
+    backgroundColor: 'var(--color-bg)'
+  },
+  kpiLabel: { fontSize: 13, color: 'var(--color-text-secondary)' },
+  kpiValue: { fontSize: 28, fontWeight: 800, color: 'var(--sl-yellow)' },
   section: {
     backgroundColor: 'white',
     padding: '20px',

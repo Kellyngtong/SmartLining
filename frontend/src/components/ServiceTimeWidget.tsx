@@ -52,7 +52,7 @@ export default function ServiceTimeWidget({
     labels,
     datasets: [
       {
-        label: 'Avg. Service Time (min)',
+        label: 'Tiempo medio de atención 14 días (min)',
         data: series.map(s => (s.avgMinutes === null ? null : s.avgMinutes)),
         fill: false,
         borderColor: '#007bff',
@@ -86,7 +86,9 @@ export default function ServiceTimeWidget({
         maxWidth: 640,
       }}
     >
-      <h4 style={{ margin: '0 0 8px 0' }}>Avg. Service Time (min) — last {days} days</h4>
+      <h4 style={{ margin: '0 0 8px 0' }}>
+        Tiempo medio de atención 14 días (min) — últimos {days} días
+      </h4>
       {loading ? (
         <p>Loading...</p>
       ) : (

@@ -7,16 +7,16 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, token, restoreSession } = useAuthStore();
+  const { user, token } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const restore = async () => {
-      await restoreSession();
+      await useAuthStore.getState().restoreSession();
       setIsLoading(false);
     };
     restore();
-  }, [restoreSession]);
+  }, []);
 
   if (isLoading) {
     return <div>Cargando...</div>;

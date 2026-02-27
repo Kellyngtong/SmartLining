@@ -5,12 +5,14 @@ export default function LandingPage() {
   return (
     <div style={{ padding: 40, fontFamily: 'Inter, sans-serif' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1>SmartLining</h1>
+        <h1 style={{ color: 'var(--sl-black)' }}>SmartLining</h1>
         <nav>
           <Link to="/login" style={{ marginRight: 12 }}>
-            Admin
+            <button className="btn-primary">Admin</button>
           </Link>
-          <Link to="/join-queue/1">Join Queue (Demo)</Link>
+          <Link to="/join-queue/1">
+            <button className="btn-primary">Join Demo Queue</button>
+          </Link>
         </nav>
       </header>
 
@@ -28,9 +30,7 @@ export default function LandingPage() {
             demonstrates the Join Queue → Ticket Confirmation flow.
           </p>
           <Link to="/join-queue/1">
-            <button style={{ padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}>
-              Join Demo Queue
-            </button>
+            <button className="btn-primary" style={{ borderRadius: 6 }}>Join Demo Queue</button>
           </Link>
         </section>
       </main>
@@ -44,7 +44,6 @@ export default function LandingPage() {
           alignItems: 'center',
         }}
       >
-        <small>Running locally — Backend API at {apiUrl}</small>
         <div>
           <Link to="/privacy" style={{ marginLeft: 12 }}>
             Política de Privacidad
