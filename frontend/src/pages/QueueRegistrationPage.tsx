@@ -83,7 +83,7 @@ export default function QueueRegistrationPage() {
       if (ticketResponse.data) {
         const ticketData = ticketResponse.data as any;
         setTicketId(ticketData.id_turno);
-        
+
         // Redirigir a página de confirmación
         setTimeout(() => {
           navigate('/ticket-confirmation', {
@@ -97,7 +97,7 @@ export default function QueueRegistrationPage() {
         }, 1500);
       }
     } catch (err) {
-      setError((err instanceof Error ? err.message : 'Error al registrarse en la cola'));
+      setError(err instanceof Error ? err.message : 'Error al registrarse en la cola');
       console.error(err);
     } finally {
       setRegistering(false);
@@ -136,18 +136,16 @@ export default function QueueRegistrationPage() {
 
         <div style={styles.queueInfo}>
           <h2 style={styles.queueName}>{queue.nombre}</h2>
-          {queue.descripcion && (
-            <p style={styles.queueDescription}>{queue.descripcion}</p>
-          )}
-          <p style={styles.queueStatus}>
-            {queue.activa ? '🟢 Cola activa' : '🔴 Cola inactiva'}
-          </p>
+          {queue.descripcion && <p style={styles.queueDescription}>{queue.descripcion}</p>}
+          <p style={styles.queueStatus}>{queue.activa ? '🟢 Cola activa' : '🔴 Cola inactiva'}</p>
         </div>
 
         {ticketId ? (
           <div style={styles.success}>
             <p style={{ fontSize: '20px', marginBottom: '10px' }}>✅ ¡Registrado exitosamente!</p>
-            <p>Tu número de turno es: <strong>{ticketId}</strong></p>
+            <p>
+              Tu número de turno es: <strong>{ticketId}</strong>
+            </p>
             <p style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
               Redirigiendo a tu ticket...
             </p>
@@ -207,9 +205,7 @@ export default function QueueRegistrationPage() {
         )}
 
         <div style={styles.footer}>
-          <p style={styles.footerText}>
-            Tu información será guardada solo para este registro
-          </p>
+          <p style={styles.footerText}>Tu información será guardada solo para este registro</p>
         </div>
       </div>
     </div>

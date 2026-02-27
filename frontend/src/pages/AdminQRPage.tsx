@@ -19,6 +19,7 @@ export default function AdminQRPage() {
   const [loading, setLoading] = useState(true);
   const [selectedQueue, setSelectedQueue] = useState<Queue | null>(null);
   const [qrSize, setQrSize] = useState(256);
+  const [format, setFormat] = useState<'url' | 'json'>('url');
 
   // Verificar que el usuario es admin
   useEffect(() => {
@@ -48,9 +49,98 @@ export default function AdminQRPage() {
     loadQueues();
   }, []);
 
+  // Form state for CRUD
+  const [formName, setFormName] = useState('');
+  const [formDesc, setFormDesc] = useState('');
+  const [formActive, setFormActive] = useState(true);
+  const [processing, setProcessing] = useState(false);
+
+  const refreshQueues = async () => {
+    setLoading(true);
+    try {
+      const response = await apiClient.getQueues();
+      if (response.data && Array.isArray(response.data)) {
+        setQueues(response.data as Queue[]);
+        if (response.data.length > 0) setSelectedQueue(response.data[0]);
+      }
+    } catch (e) {
+      console.error('Error refreshing queues', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startEdit = (q: Queue) => {
+    setSelectedQueue(q);
+    setFormName(q.nombre);
+    setFormDesc(q.descripcion);
+    setFormActive(Boolean(q.activa));
+  };
+
+  const handleCreate = async () => {
+    setProcessing(true);
+    try {
+      await apiClient.createQueue(formName || 'Nueva Cola', formDesc || '', formActive);
+      await refreshQueues();
+      setFormName('');
+      setFormDesc('');
+      setFormActive(true);
+      alert('Cola creada');
+    } catch (e) {
+      console.error(e);
+      alert('Error creando cola');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!selectedQueue) return;
+    setProcessing(true);
+    try {
+      await apiClient.updateQueue(selectedQueue.id_cola, formName, formDesc, formActive);
+      await refreshQueues();
+      alert('Cola actualizada');
+    } catch (e) {
+      console.error(e);
+      alert('Error actualizando cola');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedQueue) return;
+    if (!window.confirm(`Eliminar cola "${selectedQueue.nombre}" ?`)) return;
+    setProcessing(true);
+    try {
+      await apiClient.deleteQueue(selectedQueue.id_cola);
+      await refreshQueues();
+      alert('Cola eliminada');
+    } catch (e) {
+      console.error(e);
+      alert('Error eliminando cola');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   const getQueueUrl = (queueId: number) => {
-    const baseUrl = window.location.origin;
+    const baseUrl = (import.meta.env.VITE_APP_URL as string) || window.location.origin;
     return `${baseUrl}/join-queue/${queueId}`;
+  };
+
+  const getQueuePayload = (queue: Queue) => {
+    const baseUrl = (import.meta.env.VITE_APP_URL as string) || window.location.origin;
+    const url = `${baseUrl}/join-queue/${queue.id_cola}`;
+    const clientName = `cliente-${Date.now()}`;
+    // ticketid unknown at generation time; set to null
+    return {
+      ticketid: null,
+      queueid: queue.id_cola,
+      clienteName: clientName,
+      url,
+    };
   };
 
   const handlePrintQR = () => {
@@ -111,23 +201,36 @@ export default function AdminQRPage() {
         {/* Selector de cola */}
         <div style={styles.selectorSection}>
           <h2 style={styles.sectionTitle}>Selecciona una Cola</h2>
+          <div style={{ marginBottom: 12 }}>
+            <input placeholder="Nombre" value={formName} onChange={(e) => setFormName(e.target.value)} style={{ marginRight: 8 }} />
+            <input placeholder="Descripción" value={formDesc} onChange={(e) => setFormDesc(e.target.value)} style={{ marginRight: 8 }} />
+            <label style={{ marginRight: 8 }}>
+              Activa
+              <input type="checkbox" checked={formActive} onChange={(e) => setFormActive(e.target.checked)} style={{ marginLeft: 6 }} />
+            </label>
+            <button onClick={handleCreate} disabled={processing} style={{ marginRight: 8 }}>
+              Crear
+            </button>
+            <button onClick={handleSave} disabled={processing || !selectedQueue} style={{ marginRight: 8 }}>
+              Guardar
+            </button>
+            <button onClick={handleDelete} disabled={processing || !selectedQueue} style={{ background: '#ff4d4f', color: 'white' }}>
+              Eliminar
+            </button>
+          </div>
           <div style={styles.queueGrid}>
-            {queues.map((queue) => (
+            {queues.map(queue => (
               <div
                 key={queue.id_cola}
                 style={{
                   ...styles.queueCard,
-                  ...(selectedQueue?.id_cola === queue.id_cola
-                    ? styles.queueCardSelected
-                    : {}),
+                  ...(selectedQueue?.id_cola === queue.id_cola ? styles.queueCardSelected : {}),
                 }}
-                onClick={() => setSelectedQueue(queue)}
+                onClick={() => startEdit(queue)}
               >
                 <h3 style={styles.queueName}>{queue.nombre}</h3>
                 <p style={styles.queueDesc}>{queue.descripcion}</p>
-                <p style={styles.queueStatus}>
-                  {queue.activa ? '🟢 Activa' : '⛔ Inactiva'}
-                </p>
+                <p style={styles.queueStatus}>{queue.activa ? '🟢 Activa' : '⛔ Inactiva'}</p>
               </div>
             ))}
           </div>
@@ -140,30 +243,37 @@ export default function AdminQRPage() {
 
             <div style={styles.qrCard}>
               <div style={styles.qrDisplay} id={`qr-${selectedQueue.id_cola}`}>
-                <QRCodeSVG
-                  value={getQueueUrl(selectedQueue.id_cola)}
-                  size={qrSize}
-                  level="H"
-                  includeMargin
-                  fgColor="#000000"
-                  bgColor="#ffffff"
-                />
+                {(() => {
+                  const payload = format === 'json' ? JSON.stringify(getQueuePayload(selectedQueue)) : getQueueUrl(selectedQueue.id_cola);
+                  return (
+                    <QRCodeSVG value={payload} size={qrSize} level="H" includeMargin fgColor="#000000" bgColor="#ffffff" />
+                  );
+                })()}
               </div>
 
               <div style={styles.qrInfo}>
                 <h3>{selectedQueue.nombre}</h3>
-                <p style={styles.qrUrl}>{getQueueUrl(selectedQueue.id_cola)}</p>
+                <p style={styles.qrUrl}>
+                  {format === 'json' ? JSON.stringify(getQueuePayload(selectedQueue)) : getQueueUrl(selectedQueue.id_cola)}
+                </p>
 
                 <div style={styles.controls}>
                   <label style={styles.sizeLabel}>
+                    Formato:
+                    <select value={format} onChange={(e) => setFormat(e.target.value as any)} style={{ marginLeft: 8 }}>
+                      <option value="url">URL (abre la página)</option>
+                      <option value="json">JSON (incluye URL)</option>
+                    </select>
+                  </label>
+                  <label style={{ ...styles.sizeLabel, marginTop: 8 }}>
                     Tamaño del QR:
                     <input
                       type="range"
-                      min="100"
-                      max="500"
+                      min="150"
+                      max="700"
                       step="10"
                       value={qrSize}
-                      onChange={(e) => setQrSize(parseInt(e.target.value))}
+                      onChange={e => setQrSize(parseInt(e.target.value))}
                       style={styles.sizeSlider}
                     />
                     <span>{qrSize}px</span>
@@ -171,26 +281,21 @@ export default function AdminQRPage() {
                 </div>
 
                 <div style={styles.buttonGroup}>
-                  <button
-                    onClick={() => handleDownloadQR(selectedQueue)}
-                    style={styles.button}
-                  >
+                  <button onClick={() => handleDownloadQR(selectedQueue)} style={styles.button}>
                     ⬇️ Descargar QR
                   </button>
-                  <button
-                    onClick={() => handlePrintQR()}
-                    style={styles.button}
-                  >
+                  <button onClick={() => handlePrintQR()} style={styles.button}>
                     🖨️ Imprimir
                   </button>
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText(getQueueUrl(selectedQueue.id_cola));
-                      alert('URL copiada al portapapeles');
+                      const payload = format === 'json' ? JSON.stringify(getQueuePayload(selectedQueue)) : getQueueUrl(selectedQueue.id_cola);
+                      navigator.clipboard.writeText(payload);
+                      alert('Contenido copiado al portapapeles');
                     }}
                     style={styles.button}
                   >
-                    📋 Copiar URL
+                    📋 Copiar contenido
                   </button>
                 </div>
 
@@ -200,8 +305,9 @@ export default function AdminQRPage() {
                     <li>Descarga o imprime el código QR</li>
                     <li>Coloca el QR en un lugar visible en tu establecimiento</li>
                     <li>Los clientes escanean el QR con sus teléfonos</li>
-                    <li>Se registran automáticamente en la cola</li>
-                    <li>Ven su número de turno y tiempo estimado</li>
+                    <li>Si el QR es de tipo <strong>URL</strong>, el escáner abrirá la página de registro en el frontend y se generará automáticamente el cliente y el turno.</li>
+                    <li>Si el QR es de tipo <strong>JSON</strong>, contiene un objeto con <code>queueid</code>, <code>clienteName</code> y una propiedad <code>url</code> que apunta a la página de registro; algunos escáneres mostrarán el JSON, otros permitirán abrir la URL incluida.</li>
+                    <li>Tras registrarse verán su número de turno y tiempo estimado y el sistema comenzará a rastrear su avance.</li>
                   </ol>
                 </div>
               </div>

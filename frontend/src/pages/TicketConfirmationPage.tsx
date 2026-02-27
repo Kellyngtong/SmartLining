@@ -32,7 +32,32 @@ export default function TicketConfirmationPage() {
   const qrRef = useRef<HTMLDivElement>(null);
 
   const state = (location.state as any) || {};
-  const { ticketId, queueId, queueName, clientName } = state;
+  const [localTicketId, setLocalTicketId] = useState<number | null>(
+    state?.ticketId ? Number(state.ticketId) : null
+  );
+  const [localQueueId, setLocalQueueId] = useState<number | null>(
+    state?.queueId ? Number(state.queueId) : null
+  );
+  let ticketId = localTicketId;
+  let queueId = localQueueId;
+  let queueName = state?.queueName;
+  let clientName = state?.clientName;
+
+  // If navigation state is missing (user refreshed or opened directly), try to recover from localStorage
+  if ((!ticketId || !queueId) && typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('smartlining_ticket');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        ticketId = ticketId || parsed.ticketId;
+        queueId = queueId || parsed.queueId;
+        queueName = queueName || parsed.queueName;
+        clientName = clientName || parsed.clientName;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
 
   const [queueInfo, setQueueInfo] = useState<QueueInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,9 +68,29 @@ export default function TicketConfirmationPage() {
     const loadQueueInfo = async () => {
       try {
         setError(null);
-        const response = await apiClient.getQueueInfo(parseInt(queueId), parseInt(ticketId));
-        if (response.data) {
-          setQueueInfo(response.data as QueueInfo);
+        // If we don't have ticket/queue identifiers, ask server for the ticket associated to cookie
+        if (!ticketId || !queueId) {
+          const resp = await apiClient.getMyTicket();
+          if (resp?.data) {
+            const d = resp.data;
+            setLocalTicketId(d.userInfo?.turnoId ?? d.turno?.id_turno ?? null);
+            setLocalQueueId(d.queue?.id_cola ?? d.turno?.id_cola ?? null);
+            queueName = queueName || d.queue?.nombre;
+            clientName = clientName || d.userInfo?.clienteNombre || d.turno?.cliente?.nombre;
+            setQueueInfo({
+              queue: { id_cola: d.queue?.id_cola ?? d.turno?.id_cola, nombre: queueName, descripcion: '', activa: true },
+              stats: { totalEnEspera: 0, totalEnAtencion: 0, turnoActual: null },
+              userInfo: d.userInfo,
+            } as QueueInfo);
+          }
+        } else {
+          // Ensure we have numeric ids
+          const qId = typeof queueId === 'string' ? parseInt(queueId) : queueId;
+          const tId = typeof ticketId === 'string' ? parseInt(ticketId) : ticketId;
+          const response = await apiClient.getQueueInfo(Number(qId), Number(tId));
+          if (response.data) {
+            setQueueInfo(response.data as QueueInfo);
+          }
         }
         setLoading(false);
       } catch (err) {
@@ -117,7 +162,11 @@ export default function TicketConfirmationPage() {
               <div style={styles.statusItem}>
                 <span style={styles.statusLabel}>⏱️ Tiempo Estimado</span>
                 <span style={{ ...styles.statusValue, color: '#ff9800' }}>
-                  {loading ? '...' : typeof tiempoEstimado === 'number' ? `${tiempoEstimado} min` : '-'}
+                  {loading
+                    ? '...'
+                    : typeof tiempoEstimado === 'number'
+                      ? `${tiempoEstimado} min`
+                      : '-'}
                 </span>
               </div>
             </div>
@@ -147,7 +196,10 @@ export default function TicketConfirmationPage() {
             <div style={styles.detail}>
               <span style={styles.detailLabel}>Estado:</span>
               <span style={styles.detailValue}>
-                🟢 {queueInfo?.userInfo?.estado === 'EN_ESPERA' ? 'En Espera' : queueInfo?.userInfo?.estado || 'Pendiente'}
+                🟢{' '}
+                {queueInfo?.userInfo?.estado === 'EN_ESPERA'
+                  ? 'En Espera'
+                  : queueInfo?.userInfo?.estado || 'Pendiente'}
               </span>
             </div>
             <div style={styles.detail}>
@@ -195,12 +247,8 @@ export default function TicketConfirmationPage() {
         </div>
 
         <div style={styles.footer}>
-          <p style={styles.footerText}>
-            Número de confirmación: {ticketId}
-          </p>
-          <p style={styles.footerText}>
-            Hora de registro: {new Date().toLocaleString('es-ES')}
-          </p>
+          <p style={styles.footerText}>Número de confirmación: {ticketId}</p>
+          <p style={styles.footerText}>Hora de registro: {new Date().toLocaleString('es-ES')}</p>
           <p style={styles.footerText}>
             {loading && '⏳ Actualizando información...'}
             {error && `⚠️ ${error}`}

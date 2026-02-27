@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useAuthStore } from '../store/auth.store';
 import { useQueueStore } from '../store/queue.store';
+import ServiceTimeWidget from '../components/ServiceTimeWidget';
 
 export function DashboardPage() {
   const { user, logout } = useAuthStore();
@@ -20,6 +21,9 @@ export function DashboardPage() {
         <h1 style={styles.title}>SmartLining Dashboard</h1>
         <div style={styles.userInfo}>
           <span>{user.nombre}</span>
+          <button onClick={() => (window.location.href = '/admin/qr')} style={styles.secondaryBtn}>
+            Generador QR
+          </button>
           <button onClick={logout} style={styles.logoutBtn}>
             Cerrar Sesión
           </button>
@@ -47,6 +51,10 @@ export function DashboardPage() {
           ) : (
             <p>No hay colas disponibles</p>
           )}
+        </section>
+
+        <section style={{ ...styles.section, display: 'flex', gap: 16 }}>
+          <ServiceTimeWidget colaId={queues.length > 0 ? queues[0].id_cola : 1} days={14} />
         </section>
       </main>
     </div>
@@ -80,6 +88,15 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: 'rgba(255,255,255,0.2)',
     color: 'white',
     border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '14px',
+  },
+  secondaryBtn: {
+    padding: '8px 16px',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    color: 'white',
+    border: '1px solid rgba(255,255,255,0.2)',
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '14px',

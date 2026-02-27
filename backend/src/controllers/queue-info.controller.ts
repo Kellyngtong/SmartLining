@@ -17,7 +17,8 @@ router.get('/:colaId', async (req: Request, res: Response) => {
   try {
     const colaId = parseInt(req.params.colaId as string);
     const turnoIdQuery = req.query.turnoId;
-    const turnoId = turnoIdQuery && typeof turnoIdQuery === 'string' ? parseInt(turnoIdQuery) : undefined;
+    const turnoId =
+      turnoIdQuery && typeof turnoIdQuery === 'string' ? parseInt(turnoIdQuery) : undefined;
 
     if (isNaN(colaId)) {
       return res.status(400).json({
@@ -51,8 +52,8 @@ router.get('/:colaId', async (req: Request, res: Response) => {
     });
 
     // Separar por estado
-    const turnosEnAtencion = turnosActivos.filter(t => t.estado === 'EN_ATENCION');
-    const turnosEnEspera = turnosActivos.filter(t => t.estado === 'EN_ESPERA');
+    const turnosEnAtencion = turnosActivos.filter((t) => t.estado === 'EN_ATENCION');
+    const turnosEnEspera = turnosActivos.filter((t) => t.estado === 'EN_ESPERA');
     const turnoActual = turnosEnAtencion.length > 0 ? turnosEnAtencion[0] : null;
 
     // Calcular posición del usuario si se proporciona turnoId
@@ -67,14 +68,40 @@ router.get('/:colaId', async (req: Request, res: Response) => {
 
       if (miTurno && miTurno.id_cola === colaId) {
         // Contar cuántos turnos hay en espera antes del mío
-        miPosicion = turnosEnEspera.filter((t: any) => t.fecha_hora_creacion <= miTurno!.fecha_hora_creacion).length;
+        miPosicion = turnosEnEspera.filter(
+          (t: any) => t.fecha_hora_creacion <= miTurno!.fecha_hora_creacion
+        ).length;
       }
     }
 
-    // Calcular tiempo estimado
-    // Asumimos 5 minutos por turno como promedio
-    const tiempoPromedioPorTurno = 5; // minutos
+    // Calcular tiempo estimado usando historico de atenciones (duracion_atencion en segundos)
+    // Usaremos la media de las atenciones de la cola en los últimos 30 días como promedio por turno.
     let tiempoEstimado = 0;
+    let tiempoPromedioPorTurno = 5; // fallback minutos
+
+    try {
+      const fechaDesde = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 dias
+      const agg = await prisma.atencion.aggregate({
+        _avg: {
+          duracion_atencion: true,
+        },
+        where: {
+          duracion_atencion: { not: null },
+          turno: {
+            id_cola: colaId,
+          },
+        },
+      });
+
+      // agg._avg.duracion_atencion is in seconds (if present)
+      const avgSeconds = agg._avg?.duracion_atencion ?? null;
+      if (avgSeconds && avgSeconds > 0) {
+        tiempoPromedioPorTurno = Math.max(1, Math.round((avgSeconds / 60) * 100) / 100); // minutes, 2 decimals
+      }
+    } catch (e) {
+      // If aggregation fails, keep fallback
+      logger.warn('Failed to compute average atencion duration, using fallback:', e);
+    }
 
     if (miPosicion && miPosicion > 0) {
       // Tiempo = (personas delante) * promedio
@@ -100,16 +127,17 @@ router.get('/:colaId', async (req: Request, res: Response) => {
               }
             : null,
         },
-        userInfo: turnoId && miTurno && miPosicion !== null
-          ? {
-              turnoId: miTurno.id_turno,
-              numeroDeTurno: miTurno.numero_turno,
-              clienteNombre: 'Cliente',
-              estado: miTurno.estado,
-              miPosicion,
-              tiempoEstimadoMinutos: tiempoEstimado,
-            }
-          : null,
+        userInfo:
+          turnoId && miTurno && miPosicion !== null
+            ? {
+                turnoId: miTurno.id_turno,
+                numeroDeTurno: miTurno.numero_turno,
+                clienteNombre: 'Cliente',
+                estado: miTurno.estado,
+                miPosicion,
+                tiempoEstimadoMinutos: tiempoEstimado,
+              }
+            : null,
       },
     });
   } catch (error) {

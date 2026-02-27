@@ -1,0 +1,73 @@
+.sl-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #fafafa 0%, #e5e5e5 100%);
+}
+.sl-header {
+  background: #111;
+  border-bottom: 1px solid rgba(255, 215, 0, 0.12);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+.sl-header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 20px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.sl-btn-ghost {
+  background: transparent;
+  border: none;
+  color: #fafafa;
+  font-size: 18px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+.sl-title {
+  color: #ffd700;
+  margin: 0;
+  font-size: 20px;
+}
+.sl-sub {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+}
+.sl-main {
+  padding: 28px 20px;
+  max-width: 900px;
+}
+.sl-card {
+  background: #fff;
+  border: 1px solid rgba(255, 215, 0, 0.12);
+  border-radius: 8px;
+  padding: 18px;
+  margin-bottom: 18px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04);
+  padding: 5%;
+}
+ol,
+ul {
+  margin-left: 5%;
+}
+.sl-note {
+  background: rgba(255, 215, 0, 0.08);
+  border: 1px solid rgba(255, 215, 0, 0.18);
+  padding: 10px;
+  border-radius: 6px;
+}
+.sl-actions {
+  text-align: center;
+  margin: 18px 0 60px 0;
+}
+.sl-btn-primary {
+  background: linear-gradient(90deg, #ffd700, #ffb300);
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #111;
+  font-weight: 600;
+}

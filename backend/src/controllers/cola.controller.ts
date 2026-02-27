@@ -268,4 +268,45 @@ router.get('/:id/turnos', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * POST /api/colas/:id/next
+ * Atomically take the next EN_ESPERA turno and mark it as EN_ATENCION
+ */
+router.post('/:id/next', async (req: Request, res: Response) => {
+  try {
+    const colaId = parseInt(req.params.id as string);
+    const id_empleado = req.body.id_empleado as number | undefined;
+
+    if (isNaN(colaId)) {
+      return res.status(400).json({ success: false, error: 'Invalid queue ID' });
+    }
+
+    // Transactionally find the earliest EN_ESPERA turno and update it
+    const result = await prisma.$transaction(async (tx) => {
+      const turno = await tx.turno.findFirst({
+        where: { id_cola: colaId, estado: 'EN_ESPERA' },
+        orderBy: { fecha_hora_creacion: 'asc' },
+      });
+
+      if (!turno) return null;
+
+      const updated = await tx.turno.update({
+        where: { id_turno: turno.id_turno },
+        data: { estado: 'EN_ATENCION' as any, fecha_hora_llamada: new Date() },
+      });
+
+      return updated;
+    });
+
+    if (!result) {
+      return res.status(404).json({ success: false, error: 'No pending tickets' });
+    }
+
+    return res.json({ success: true, data: result, message: 'Next ticket called' });
+  } catch (error) {
+    logger.error('Error calling next ticket:', error);
+    return res.status(500).json({ success: false, error: 'Error calling next ticket' });
+  }
+});
+
 export default router;

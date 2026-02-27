@@ -109,12 +109,7 @@ export default function QRScannerPage() {
           <>
             {scanning ? (
               <div style={styles.scannerContainer}>
-                <video
-                  ref={videoRef}
-                  style={styles.video}
-                  playsInline
-                  autoPlay
-                />
+                <video ref={videoRef} style={styles.video} playsInline autoPlay />
                 <canvas ref={canvasRef} style={{ display: 'none' }} />
                 <div style={styles.scannerOverlay}>
                   <div style={styles.scannerFrame} />
@@ -128,19 +123,14 @@ export default function QRScannerPage() {
               </div>
             ) : null}
 
-            <button
-              onClick={handleManualEntry}
-              style={styles.secondaryButton}
-            >
+            <button onClick={handleManualEntry} style={styles.secondaryButton}>
               Ingresar ID manualmente
             </button>
           </>
         )}
 
         <div style={styles.footer}>
-          <p style={styles.footerText}>
-            ¿Necesitas ayuda? Contacta al personal disponible
-          </p>
+          <p style={styles.footerText}>¿Necesitas ayuda? Contacta al personal disponible</p>
         </div>
       </div>
     </div>

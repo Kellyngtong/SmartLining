@@ -27,7 +27,7 @@ export function QueueListPage() {
   const handleRegisterQueue = async (queueId: number) => {
     setLoading(true);
     setError(null);
-    
+
     try {
       // Crear un turno en la cola
       const response = await apiClient.createTicket({
@@ -55,7 +55,7 @@ export function QueueListPage() {
   // Si ya tiene un turno, mostrar el QR
   if (turno) {
     const queueName = queues.find(q => q.id_cola === selectedQueueId)?.nombre || 'Cola';
-    
+
     return (
       <div style={styles.container}>
         <header style={styles.header}>
@@ -71,16 +71,20 @@ export function QueueListPage() {
         <main style={styles.main}>
           <div style={styles.qrContainer}>
             <h2>¡Te has registrado exitosamente!</h2>
-            <p style={styles.queueName}>Cola: <strong>{queueName}</strong></p>
-            <p style={styles.ticketNumber}>Tu número de turno: <strong>{turno.numero_turno}</strong></p>
-            
+            <p style={styles.queueName}>
+              Cola: <strong>{queueName}</strong>
+            </p>
+            <p style={styles.ticketNumber}>
+              Tu número de turno: <strong>{turno.numero_turno}</strong>
+            </p>
+
             <div style={styles.qrBox}>
-              <QRCodeSVG 
+              <QRCodeSVG
                 value={JSON.stringify({
                   id_turno: turno.id_turno,
                   numero_turno: turno.numero_turno,
                   cola: queueName,
-                  fecha: new Date().toLocaleString('es-ES')
+                  fecha: new Date().toLocaleString('es-ES'),
                 })}
                 size={256}
                 level="H"
@@ -89,9 +93,11 @@ export function QueueListPage() {
             </div>
 
             <p style={styles.qrInfo}>Presenta este QR en la oficina o espera tu turno</p>
-            <p style={styles.estado}>Estado: <strong style={{ color: '#ff9800' }}>{turno.estado.toUpperCase()}</strong></p>
-            
-            <button 
+            <p style={styles.estado}>
+              Estado: <strong style={{ color: '#ff9800' }}>{turno.estado.toUpperCase()}</strong>
+            </p>
+
+            <button
               onClick={() => {
                 setTurno(null);
                 setSelectedQueueId(null);
@@ -142,13 +148,13 @@ export function QueueListPage() {
                       <span style={{ color: '#d32f2f' }}>● Inactiva</span>
                     )}
                   </p>
-                  
+
                   <button
                     onClick={() => handleRegisterQueue(queue.id_cola)}
                     disabled={!queue.activa || loading}
                     style={{
                       ...styles.registerBtn,
-                      ...((!queue.activa || loading) ? styles.registerBtnDisabled : {})
+                      ...(!queue.activa || loading ? styles.registerBtnDisabled : {}),
                     }}
                   >
                     {loading ? 'Registrando...' : 'Obtener Turno'}

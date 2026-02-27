@@ -142,18 +142,21 @@ async function main() {
 
     const cliente1 = await prisma.cliente.create({
       data: {
+        nombre: 'Cliente 1',
         origen: 'QR',
       },
     });
 
     const cliente2 = await prisma.cliente.create({
       data: {
+        nombre: 'Cliente 2',
         origen: 'QR',
       },
     });
 
     const cliente3 = await prisma.cliente.create({
       data: {
+        nombre: 'Cliente 3',
         origen: 'QR',
       },
     });

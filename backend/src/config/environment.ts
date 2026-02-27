@@ -1,8 +1,11 @@
+import 'dotenv/config';
+
 export const environment = {
   // Server
   NODE_ENV: process.env.NODE_ENV || 'development',
   PORT: parseInt(process.env.PORT || '3000', 10),
-  HOST: process.env.HOST || (process.env.NODE_ENV === 'production' ? '0.0.0.0' : 'localhost'),
+  // Default to 0.0.0.0 in development so the server is reachable on the LAN
+  HOST: process.env.HOST || '0.0.0.0',
 
   // Database
   DATABASE_URL: process.env.DATABASE_URL || '',
@@ -13,6 +16,7 @@ export const environment = {
 
   // CORS
   CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  CORS_CREDENTIALS: process.env.CORS_CREDENTIALS === 'true',
 
   // Rate Limiting
   RATE_LIMIT_WINDOW_MS: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),

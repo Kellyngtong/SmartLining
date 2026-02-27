@@ -43,6 +43,8 @@ enum UserRole {
 // Representa a los clientes finales que solicitan un turno mediante código QR.
 model Cliente {
   id_cliente    Int       @id @default(autoincrement())
+  nombre        String    @db.VarChar(100)
+  client_token  String?   @unique
   fecha_creacion DateTime  @default(now())
   origen        String    @default("QR") @db.VarChar(50)
 

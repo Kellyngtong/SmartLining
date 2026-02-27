@@ -54,6 +54,8 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
+
+
 /**
  * GET /api/turnos/:id
  * Obtener detalle de un turno con atención y valoración
@@ -88,6 +90,103 @@ router.get('/:id', async (req: Request, res: Response) => {
       success: false,
       error: 'Error fetching ticket',
     });
+  }
+});
+
+/**
+ * GET /api/turnos/me
+ * Obtener el turno asociado a la cookie `turno_id`.
+ */
+router.get('/me', async (req: Request, res: Response) => {
+  try {
+    const cookieHeader = req.headers.cookie || '';
+    const match = cookieHeader.match(/\bturno_id=([^;\s]+)/);
+    const turnoIdStr = match ? match[1] : null;
+
+    if (!turnoIdStr) {
+      return res.status(400).json({ success: false, error: 'No turno cookie present' });
+    }
+
+    const id = parseInt(turnoIdStr, 10);
+    if (isNaN(id)) {
+      return res.status(400).json({ success: false, error: 'Invalid turno id in cookie' });
+    }
+
+    const turno = await prisma.turno.findUnique({
+      where: { id_turno: id },
+      include: {
+        cliente: true,
+        atencion: {
+          select: {
+            id_atencion: true,
+            id_empleado: true,
+            duracion_atencion: true,
+            resultado: true,
+          },
+        },
+        valoracion: {
+          select: {
+            id_valoracion: true,
+            puntuacion: true,
+            comentario: true,
+          },
+        },
+      },
+    });
+
+    if (!turno) {
+      return res.status(404).json({ success: false, error: 'Ticket not found' });
+    }
+
+    // Calcular posición y ETA similar a /api/queue-info
+    const colaId = turno.id_cola;
+    const turnosActivos = await prisma.turno.findMany({
+      where: { id_cola: colaId, estado: { in: ['EN_ESPERA', 'EN_ATENCION'] } },
+      orderBy: { fecha_hora_creacion: 'asc' },
+    });
+
+    const turnosEnAtencion = turnosActivos.filter((t) => t.estado === 'EN_ATENCION');
+    const turnosEnEspera = turnosActivos.filter((t) => t.estado === 'EN_ESPERA');
+
+    const miPosicion =
+      turnosEnEspera.findIndex((t) => t.id_turno === turno.id_turno) + 1 || 1;
+
+    let tiempoPromedioPorTurno = 5;
+    try {
+      const agg = await prisma.atencion.aggregate({
+        _avg: { duracion_atencion: true },
+        where: { duracion_atencion: { not: null }, turno: { id_cola: colaId } },
+      });
+      const avgSeconds = agg._avg?.duracion_atencion ?? null;
+      if (avgSeconds && avgSeconds > 0) {
+        tiempoPromedioPorTurno = Math.max(1, Math.round((avgSeconds / 60) * 100) / 100);
+      }
+    } catch (e) {
+      logger.warn('Failed to compute average atencion duration for /turnos/me', e);
+    }
+
+    const tiempoEstimado = miPosicion > 0 ? (miPosicion - 1) * tiempoPromedioPorTurno : 0;
+
+    return res.json({
+      success: true,
+      data: {
+        turno,
+        queue: {
+          id_cola: colaId,
+        },
+        userInfo: {
+          turnoId: turno.id_turno,
+          numeroDeTurno: turno.numero_turno,
+          clienteNombre: turno.cliente ? turno.cliente.nombre : undefined,
+          estado: turno.estado,
+          miPosicion,
+          tiempoEstimadoMinutos: tiempoEstimado,
+        },
+      },
+    });
+  } catch (error) {
+    logger.error('Error fetching my turno from cookie:', error);
+    return res.status(500).json({ success: false, error: 'Error fetching ticket' });
   }
 });
 
@@ -133,11 +232,74 @@ router.post('/', async (req: Request, res: Response) => {
       id_cliente,
     });
 
-    return res.status(201).json({
-      success: true,
-      data: turno,
-      message: 'Ticket created successfully',
-    });
+    // Calcular posición y tiempo estimado (minutos) similar a /api/queue-info
+    try {
+      const turnosActivos = await prisma.turno.findMany({
+        where: {
+          id_cola,
+          estado: { in: ['EN_ESPERA', 'EN_ATENCION'] },
+        },
+        orderBy: { fecha_hora_creacion: 'asc' },
+      });
+
+      const turnosEnEspera = turnosActivos.filter((t) => t.estado === 'EN_ESPERA');
+
+      let miPosicion = turnosEnEspera.findIndex((t) => t.id_turno === turno.id_turno) + 1;
+      if (!miPosicion || miPosicion < 1) miPosicion = 1;
+
+      // Calcular tiempo promedio por turno (minutos) usando historial de atenciones
+      let tiempoPromedioPorTurno = 5; // fallback minutos
+      try {
+        const agg = await prisma.atencion.aggregate({
+          _avg: { duracion_atencion: true },
+          where: {
+            duracion_atencion: { not: null },
+            turno: { id_cola },
+          },
+        });
+
+        const avgSeconds = agg._avg?.duracion_atencion ?? null;
+        if (avgSeconds && avgSeconds > 0) {
+          tiempoPromedioPorTurno = Math.max(1, Math.round((avgSeconds / 60) * 100) / 100);
+        }
+      } catch (e) {
+        logger.warn('Failed to compute average atencion duration for cookie expiry, using fallback', e);
+      }
+
+      const tiempoEstimado = miPosicion > 0 ? (miPosicion - 1) * tiempoPromedioPorTurno : 0;
+
+      // Duración de la cookie: 10 minutos después del ETA (en segundos). Mínimo 60s.
+      const cookieSeconds = Math.max(60, Math.ceil((tiempoEstimado + 10) * 60));
+
+      // Set cookie `turno_id` with expiration based on estimation
+      // Secure only in production; HttpOnly + SameSite=Lax
+      res.cookie('turno_id', String(turno.id_turno), {
+        maxAge: cookieSeconds * 1000,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+      });
+
+      return res.status(201).json({
+        success: true,
+        data: turno,
+        meta: {
+          miPosicion,
+          tiempoEstimadoMinutos: tiempoEstimado,
+          cookieMaxAgeSeconds: cookieSeconds,
+        },
+        message: 'Ticket created successfully',
+      });
+    } catch (e) {
+      // If cookie or estimation fails, still return the created turno
+      logger.warn('Failed to compute or set turno cookie/ETA, returning ticket without cookie', e);
+      return res.status(201).json({
+        success: true,
+        data: turno,
+        message: 'Ticket created successfully',
+      });
+    }
   } catch (error) {
     logger.error('Error creating turno:', error);
     return res.status(500).json({

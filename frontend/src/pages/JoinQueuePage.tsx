@@ -12,6 +12,7 @@ interface CreateClientResponse {
 export default function JoinQueuePage() {
   const { queueId } = useParams();
   const navigate = useNavigate();
+  const searchParams = new URLSearchParams(window.location.search);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [queueName, setQueueName] = useState<string>('');
@@ -19,11 +20,27 @@ export default function JoinQueuePage() {
   useEffect(() => {
     const joinQueue = async () => {
       try {
-        if (!queueId) {
-          throw new Error('Invalid queue ID');
+        // Allow two ways to receive the queue: route param (/join-queue/:queueId)
+        // or a JSON payload passed as `payload` query param (scanners may show JSON).
+        let parsedQueueId: number | null = null;
+
+        if (queueId) {
+          parsedQueueId = parseInt(queueId);
+        } else if (searchParams.has('payload')) {
+          try {
+            const raw = decodeURIComponent(searchParams.get('payload') || '');
+            const obj = JSON.parse(raw);
+            if (obj && (obj.queueid || obj.queueId)) {
+              parsedQueueId = Number(obj.queueid || obj.queueId);
+            }
+          } catch (e) {
+            console.warn('Failed to parse payload param', e);
+          }
         }
 
-        const parsedQueueId = parseInt(queueId);
+        if (!parsedQueueId) {
+          throw new Error('Invalid queue ID');
+        }
 
         // 1. Obtener información de la cola
         const queueResponse = await apiClient.getQueueById(parsedQueueId);
@@ -34,8 +51,9 @@ export default function JoinQueuePage() {
         setQueueName(queue.nombre);
 
         // 2. Crear cliente automáticamente
+        const generatedClientName = `Cliente-${Date.now()}`;
         const clientResponse = await apiClient.createCliente({
-          nombre: `Cliente-${Date.now()}`,
+          nombre: generatedClientName,
         });
 
         if (!clientResponse.data) {
@@ -58,15 +76,23 @@ export default function JoinQueuePage() {
         const ticketData = ticketResponse.data as any;
         const ticketId = ticketData.id_turno;
 
+        // Persist ticket info in localStorage so the user can recover it later
+        const stored = {
+          ticketId,
+          queueId: parsedQueueId,
+          queueName: queue.nombre,
+          clientName: generatedClientName,
+        };
+        try {
+          localStorage.setItem('smartlining_ticket', JSON.stringify(stored));
+        } catch (e) {
+          // ignore storage errors
+        }
+
         // 4. Redirigir a confirmación con todos los datos
         setLoading(false);
         navigate('/ticket-confirmation', {
-          state: {
-            ticketId,
-            queueId: parsedQueueId,
-            queueName: queue.nombre,
-            clientName: `Cliente`,
-          },
+          state: stored,
         });
       } catch (err) {
         console.error('Error joining queue:', err);
@@ -96,10 +122,7 @@ export default function JoinQueuePage() {
           ) : error ? (
             <>
               <p style={styles.error}>❌ {error}</p>
-              <button
-                onClick={() => navigate('/')}
-                style={styles.button}
-              >
+              <button onClick={() => navigate('/')} style={styles.button}>
                 ← Volver al inicio
               </button>
             </>

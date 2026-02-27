@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosError, AxiosResponse } from 'axios';
 import { ApiResponse } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 class ApiClient {
   private instance: AxiosInstance;
@@ -10,6 +10,7 @@ class ApiClient {
     this.instance = axios.create({
       baseURL: API_BASE_URL,
       timeout: 10000,
+      withCredentials: true,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -111,6 +112,11 @@ class ApiClient {
     return this.get(`/colas/${id}/turnos?page=${page}&limit=${limit}`);
   }
 
+  // Operator actions
+  async callNext(colaId: number, id_empleado?: number) {
+    return this.post(`/colas/${colaId}/next`, id_empleado ? { id_empleado } : undefined);
+  }
+
   // Ticket endpoints
   async getTickets(page = 1, limit = 10, estado?: string, colaId?: number) {
     let url = `/turnos?page=${page}&limit=${limit}`;
@@ -124,7 +130,14 @@ class ApiClient {
   }
 
   async createTicket(data: { id_cola: number; id_cliente?: number; estado?: string }) {
-    return this.post('/turnos', data);
+    // Ensure credentials are sent so server can set the HttpOnly cookie
+    const response: AxiosResponse<any> = await this.instance.post('/turnos', data);
+    return response.data;
+  }
+
+  async getMyTicket() {
+    const response: AxiosResponse<any> = await this.instance.get('/turnos/me');
+    return response.data;
   }
 
   async updateTicket(id: number, estado?: string, timestamps?: any) {
@@ -192,6 +205,11 @@ class ApiClient {
   // Queue schedule endpoints
   async getHorariosCola(colaId: number) {
     return this.get(`/horarios-cola/${colaId}`);
+  }
+
+  // Analytics
+  async getServiceTimeTrend(colaId: number, period = 30) {
+    return this.get(`/analytics/service-time?colaId=${colaId}&period=${period}`);
   }
 
   async createHorarioCola(
