@@ -60,6 +60,14 @@ app.use(express.static(publicPath));
 // Routes Setup
 // ============================================
 
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err);
+});
+
 app.use('/api/health', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/colas', colaController);
@@ -72,9 +80,11 @@ app.get('/api/turnos/me', async (req, res) => {
     const cookieHeader = req.headers.cookie || '';
     const match = cookieHeader.match(/\bturno_id=([^;\s]+)/);
     const turnoIdStr = match ? match[1] : null;
-    if (!turnoIdStr) return res.status(400).json({ success: false, error: 'No turno cookie present' });
+    if (!turnoIdStr)
+      return res.status(400).json({ success: false, error: 'No turno cookie present' });
     const id = parseInt(turnoIdStr, 10);
-    if (isNaN(id)) return res.status(400).json({ success: false, error: 'Invalid turno id in cookie' });
+    if (isNaN(id))
+      return res.status(400).json({ success: false, error: 'Invalid turno id in cookie' });
 
     const turno = await prisma.turno.findUnique({
       where: { id_turno: id },
@@ -93,7 +103,10 @@ app.get('/api/turnos/me', async (req, res) => {
 
     let tiempoPromedioPorTurno = 5;
     try {
-      const agg = await prisma.atencion.aggregate({ _avg: { duracion_atencion: true }, where: { duracion_atencion: { not: null }, turno: { id_cola: colaId } } });
+      const agg = await prisma.atencion.aggregate({
+        _avg: { duracion_atencion: true },
+        where: { duracion_atencion: { not: null }, turno: { id_cola: colaId } },
+      });
       const avgSeconds = agg._avg?.duracion_atencion ?? null;
       if (avgSeconds && avgSeconds > 0) {
         tiempoPromedioPorTurno = Math.max(1, Math.round((avgSeconds / 60) * 100) / 100);
@@ -103,7 +116,21 @@ app.get('/api/turnos/me', async (req, res) => {
     }
     const tiempoEstimado = miPosicion > 0 ? (miPosicion - 1) * tiempoPromedioPorTurno : 0;
 
-    return res.json({ success: true, data: { turno, queue: { id_cola: colaId }, userInfo: { turnoId: turno.id_turno, numeroDeTurno: turno.numero_turno, clienteNombre: turno.cliente?.nombre, estado: turno.estado, miPosicion, tiempoEstimadoMinutos: tiempoEstimado } } });
+    return res.json({
+      success: true,
+      data: {
+        turno,
+        queue: { id_cola: colaId },
+        userInfo: {
+          turnoId: turno.id_turno,
+          numeroDeTurno: turno.numero_turno,
+          clienteNombre: turno.cliente?.nombre,
+          estado: turno.estado,
+          miPosicion,
+          tiempoEstimadoMinutos: tiempoEstimado,
+        },
+      },
+    });
   } catch (error) {
     logger.error('Error in /api/turnos/me route', error);
     return res.status(500).json({ success: false, error: 'Error fetching ticket' });
@@ -142,7 +169,10 @@ function collectRoutes(appInstance: any) {
   const traverse = (stackList: any[], prefix = '') => {
     stackList.forEach((layer) => {
       if (layer.route && layer.route.path) {
-        const methods = Object.keys(layer.route.methods || {}).join(',').toUpperCase() || 'ALL';
+        const methods =
+          Object.keys(layer.route.methods || {})
+            .join(',')
+            .toUpperCase() || 'ALL';
         routes.push(`${methods} ${prefix}${layer.route.path}`);
       } else if (layer.name === 'router' && layer.handle && layer.handle.stack) {
         const layerPrefix = getPrefixFromLayer(layer) || '';
@@ -177,6 +207,21 @@ app.get('/', (req, res) => {
 // ============================================
 // Global Error Handler
 // ============================================
+// Express error middleware: log error, respond 500, but do not crash process
+// (Must be defined before the 404 catch-all)
+app.use((err: any, req: any, res: any, next: any) => {
+  logger.error('Unhandled error in request', err && (err.stack || err));
+  try {
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, error: 'Internal Server Error' });
+    } else {
+      next(err);
+    }
+  } catch (e) {
+    // If response handling fails, at least log and continue
+    logger.error('Error while sending error response', e);
+  }
+});
 
 app.use((req, res) => {
   // Para rutas no API, servir index.html (SPA)
@@ -194,31 +239,42 @@ app.use((req, res) => {
 // Server Startup
 // ============================================
 
+let server: import('http').Server;
+
 const startServer = async () => {
   try {
-    // Test database connection
     await prisma.$queryRaw`SELECT 1`;
     logger.info('✅ Database connected successfully');
 
-    // Start Express server (listen on 0.0.0.0 in containers, but report as localhost)
-    const listenHost = process.env.DOCKER ? '0.0.0.0' : environment.HOST;
-    app.listen(environment.PORT, listenHost, () => {
+    const listenHost = environment.HOST || '0.0.0.0';
+
+    server = app.listen(environment.PORT, listenHost);
+
+    server.on('listening', () => {
+      const displayHost = listenHost === '0.0.0.0' ? 'localhost' : listenHost;
+
       logger.info(`
 ╔════════════════════════════════════════╗
 ║  SmartLining Server Starting...        ║
 ╠════════════════════════════════════════╣
 ║  Environment: ${environment.NODE_ENV.toUpperCase().padEnd(27)}║
-║  Host: ${`${environment.HOST}:${environment.PORT}`.padEnd(37)}║
-║  Database: ${environment.DATABASE_URL ? 'Connected' : 'Not configured'} ${environment.DATABASE_URL ? '' : ''.padEnd(18)}║
+║  Host: ${`${displayHost}:${environment.PORT}`.padEnd(37)}║
+║  Database: ${environment.DATABASE_URL ? 'Connected' : 'Not configured'}║
 ╚════════════════════════════════════════╝
       `);
 
-      logger.info(`🚀 Server is ready at http://${environment.HOST}:${environment.PORT}`);
-      logger.info(`📡 API routes available at http://${environment.HOST}:${environment.PORT}/api`);
+      logger.info(`🚀 Server is ready at http://${displayHost}:${environment.PORT}`);
+      logger.info(`📡 API routes available at http://${displayHost}:${environment.PORT}/api`);
     });
-  } catch (error) {
-    logger.error('❌ Failed to start server', error);
-    process.exit(1);
+
+    server.on('error', (err) => {
+      logger.error('Server error:', err);
+    });
+  } catch (error: unknown) {
+    logger.error(
+      '❌ Failed to start server (startup error)',
+      error instanceof Error ? error.stack || error.message : error
+    );
   }
 };
 
@@ -233,6 +289,23 @@ process.on('SIGTERM', async () => {
   logger.info('Shutting down server...');
   await prisma.$disconnect();
   process.exit(0);
+});
+
+// Prevent process from exiting on unhandled exceptions/rejections during development
+process.on('uncaughtException', (err: unknown) => {
+  logger.error(
+    'Uncaught Exception - process will not exit',
+    err instanceof Error ? err.stack || err.message : err
+  );
+  // Intentionally do not call process.exit to keep server up for debugging
+});
+
+process.on('unhandledRejection', (reason: unknown) => {
+  logger.error(
+    'Unhandled Rejection - promise rejected and not handled',
+    reason instanceof Error ? reason.stack || reason.message : reason
+  );
+  // Intentionally do not call process.exit
 });
 
 // Start the server

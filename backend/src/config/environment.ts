@@ -30,6 +30,8 @@ export const environment = {
 
   // Features
   ENABLE_SOCKET_IO: process.env.ENABLE_SOCKET_IO === 'true',
+  // API URL (optional) - can be used to expose the host/ip for clients
+  API_URL: process.env.API_URL || undefined,
 };
 
 export const isDevelopment = environment.NODE_ENV === 'development';

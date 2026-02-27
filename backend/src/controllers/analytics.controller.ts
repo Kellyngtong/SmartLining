@@ -53,7 +53,10 @@ router.get('/service-time', async (req: Request, res: Response) => {
       const key = d.toISOString().slice(0, 10);
       const bucket = buckets[key];
       if (bucket && bucket.count > 0) {
-        series.push({ date: key, avgMinutes: Math.round(((bucket.totalSec / bucket.count) / 60) * 100) / 100 });
+        series.push({
+          date: key,
+          avgMinutes: Math.round((bucket.totalSec / bucket.count / 60) * 100) / 100,
+        });
       } else {
         series.push({ date: key, avgMinutes: null });
       }

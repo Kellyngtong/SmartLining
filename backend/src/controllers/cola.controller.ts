@@ -275,27 +275,42 @@ router.get('/:id/turnos', async (req: Request, res: Response) => {
 router.post('/:id/next', async (req: Request, res: Response) => {
   try {
     const colaId = parseInt(req.params.id as string);
-    const id_empleado = req.body.id_empleado as number | undefined;
+    const id_empleado = (req.body as any)?.id_empleado as number | undefined;
+
+    if (!req.body) {
+      logger.warn('Request body is empty for call-next; proceeding without id_empleado');
+    }
 
     if (isNaN(colaId)) {
       return res.status(400).json({ success: false, error: 'Invalid queue ID' });
     }
 
+    logger.info('Request to call next ticket', { colaId, id_empleado });
+
     // Transactionally find the earliest EN_ESPERA turno and update it
     const result = await prisma.$transaction(async (tx) => {
-      const turno = await tx.turno.findFirst({
-        where: { id_cola: colaId, estado: 'EN_ESPERA' },
-        orderBy: { fecha_hora_creacion: 'asc' },
-      });
+      try {
+        const turno = await tx.turno.findFirst({
+          where: { id_cola: colaId, estado: 'EN_ESPERA' },
+          orderBy: { fecha_hora_creacion: 'asc' },
+        });
 
-      if (!turno) return null;
+        logger.info('Turno fetched for calling next', { turno });
 
-      const updated = await tx.turno.update({
-        where: { id_turno: turno.id_turno },
-        data: { estado: 'EN_ATENCION' as any, fecha_hora_llamada: new Date() },
-      });
+        if (!turno) return null;
 
-      return updated;
+        const updated = await tx.turno.update({
+          where: { id_turno: turno.id_turno },
+          data: { estado: 'EN_ATENCION' as any, fecha_hora_llamada: new Date() },
+        });
+
+        logger.info('Turno updated to EN_ATENCION', { updated });
+
+        return updated;
+      } catch (txError) {
+        logger.error('Transaction error in call-next', txError);
+        throw txError;
+      }
     });
 
     if (!result) {
@@ -304,7 +319,11 @@ router.post('/:id/next', async (req: Request, res: Response) => {
 
     return res.json({ success: true, data: result, message: 'Next ticket called' });
   } catch (error) {
-    logger.error('Error calling next ticket:', error);
+    if (error instanceof Error) {
+      logger.error('Error calling next ticket:', error.stack || error.message);
+    } else {
+      logger.error('Error calling next ticket (non-error):', error);
+    }
     return res.status(500).json({ success: false, error: 'Error calling next ticket' });
   }
 });

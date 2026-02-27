@@ -31,7 +31,10 @@ export default function RegisterQueuePage() {
       const clientResp = await apiClient.createCliente({ nombre: generatedClientName });
       const clienteId = (clientResp.data as any).id_cliente;
 
-      const ticketResp = await apiClient.createTicket({ id_cola: Number(queueId), id_cliente: clienteId });
+      const ticketResp = await apiClient.createTicket({
+        id_cola: Number(queueId),
+        id_cliente: clienteId,
+      });
       // After creation the server sets an HttpOnly cookie `turno_id`.
       // Request `/turnos/me` to retrieve the ticket details using that cookie.
       let ticketData: any = ticketResp.data;
@@ -48,7 +51,13 @@ export default function RegisterQueuePage() {
       // Send a lightweight evento to track registration (tipo EVENTO)
       try {
         const now = new Date().toISOString();
-        await apiClient.createEvento('EVENTO', `Registro cliente ${clienteId}`, `Registro en cola ${queueId}`, now, now);
+        await apiClient.createEvento(
+          'EVENTO',
+          `Registro cliente ${clienteId}`,
+          `Registro en cola ${queueId}`,
+          now,
+          now
+        );
       } catch (e) {
         // don't block user if analytics fails
         console.warn('Analytics event failed', e);
@@ -77,12 +86,24 @@ export default function RegisterQueuePage() {
 
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ maxWidth: 640, margin: '40px auto', background: 'white', padding: 24, borderRadius: 8 }}>
+      <div
+        style={{
+          maxWidth: 640,
+          margin: '40px auto',
+          background: 'white',
+          padding: 24,
+          borderRadius: 8,
+        }}
+      >
         <h2>Regístrate en la cola: {queueName}</h2>
         <p>Escanea el QR o pulsa el botón para registrarte y obtener tu turno.</p>
 
         <div style={{ marginTop: 16 }}>
-          <button onClick={handleRegister} disabled={loading} style={{ padding: '10px 14px', borderRadius: 6 }}>
+          <button
+            onClick={handleRegister}
+            disabled={loading}
+            style={{ padding: '10px 14px', borderRadius: 6 }}
+          >
             {loading ? 'Registrando...' : 'Registrarme y ver mi turno'}
           </button>
         </div>

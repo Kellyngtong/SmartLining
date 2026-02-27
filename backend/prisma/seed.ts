@@ -1,4 +1,11 @@
-import { PrismaClient, UserRole, DiaSemana, EstadoTurno, ResultadoAtencion, TipoEvento } from '@prisma/client';
+import {
+  PrismaClient,
+  UserRole,
+  DiaSemana,
+  EstadoTurno,
+  ResultadoAtencion,
+  TipoEvento,
+} from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -88,7 +95,9 @@ async function main() {
       },
     });
 
-    console.log(`✅ Colas creadas: ${colaAtencion.nombre}, ${colaCajas.nombre}, ${colaReclamos.nombre}\n`);
+    console.log(
+      `✅ Colas creadas: ${colaAtencion.nombre}, ${colaCajas.nombre}, ${colaReclamos.nombre}\n`
+    );
 
     // ========================
     // HORARIOS
@@ -161,7 +170,9 @@ async function main() {
       },
     });
 
-    console.log(`✅ Clientes creados: ${cliente1.id_cliente}, ${cliente2.id_cliente}, ${cliente3.id_cliente}\n`);
+    console.log(
+      `✅ Clientes creados: ${cliente1.id_cliente}, ${cliente2.id_cliente}, ${cliente3.id_cliente}\n`
+    );
 
     // ========================
     // TURNOS
@@ -210,7 +221,9 @@ async function main() {
       },
     });
 
-    console.log(`✅ Turnos creados: ${turnoCompletado.numero_turno} (completado), ${turnoEnEspera.numero_turno} (en espera), ${turnoEnAtencion.numero_turno} (en atención)\n`);
+    console.log(
+      `✅ Turnos creados: ${turnoCompletado.numero_turno} (completado), ${turnoEnEspera.numero_turno} (en espera), ${turnoEnAtencion.numero_turno} (en atención)\n`
+    );
 
     // ========================
     // ATENCIONES

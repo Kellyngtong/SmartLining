@@ -78,7 +78,12 @@ export default function TicketConfirmationPage() {
             queueName = queueName || d.queue?.nombre;
             clientName = clientName || d.userInfo?.clienteNombre || d.turno?.cliente?.nombre;
             setQueueInfo({
-              queue: { id_cola: d.queue?.id_cola ?? d.turno?.id_cola, nombre: queueName, descripcion: '', activa: true },
+              queue: {
+                id_cola: d.queue?.id_cola ?? d.turno?.id_cola,
+                nombre: queueName,
+                descripcion: '',
+                activa: true,
+              },
               stats: { totalEnEspera: 0, totalEnAtencion: 0, turnoActual: null },
               userInfo: d.userInfo,
             } as QueueInfo);

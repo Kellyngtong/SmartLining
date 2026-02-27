@@ -29,7 +29,7 @@ function App() {
         <Route path="/register/:queueId" element={<RegisterQueuePage />} />
         <Route path="/ticket-confirmation" element={<TicketConfirmationPage />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
-        
+
         {/* Public routes - Authentication */}
         <Route path="/login" element={<LoginPage />} />
 

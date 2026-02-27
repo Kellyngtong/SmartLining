@@ -1,4 +1,6 @@
 import { environment } from './environment';
+import fs from 'fs';
+import path from 'path';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -25,12 +27,34 @@ class Logger {
     return new Date().toISOString();
   }
 
+  private ensureLogFile() {
+    try {
+      const dir = path.join(__dirname, '..', '..', 'logs');
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      return path.join(dir, 'backend.log');
+    } catch (e) {
+      return null;
+    }
+  }
+
+  private writeToFile(level: string, message: string, data?: unknown) {
+    try {
+      const file = this.ensureLogFile();
+      if (!file) return;
+      const line = `${this.timestamp()} [${level}] ${message} ${data ? JSON.stringify(data) : ''}\n`;
+      fs.appendFileSync(file, line);
+    } catch {
+      // ignore file write errors in dev
+    }
+  }
+
   debug(message: string, data?: unknown): void {
     if (logLevels.debug >= currentLogLevel) {
       console.log(
         `${colors.cyan}[DEBUG]${colors.reset} ${this.timestamp()} ${message}`,
         data || ''
       );
+      this.writeToFile('DEBUG', message, data);
     }
   }
 
@@ -40,6 +64,7 @@ class Logger {
         `${colors.green}[INFO]${colors.reset} ${this.timestamp()} ${message}`,
         data || ''
       );
+      this.writeToFile('INFO', message, data);
     }
   }
 
@@ -49,6 +74,7 @@ class Logger {
         `${colors.yellow}[WARN]${colors.reset} ${this.timestamp()} ${message}`,
         data || ''
       );
+      this.writeToFile('WARN', message, data);
     }
   }
 
@@ -58,6 +84,7 @@ class Logger {
         `${colors.red}[ERROR]${colors.reset} ${this.timestamp()} ${message}`,
         error || ''
       );
+      this.writeToFile('ERROR', message, error);
     }
   }
 }

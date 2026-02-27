@@ -24,22 +24,26 @@ export default function PrivacyPolicy() {
           <h2>Protección de Datos</h2>
           <p className="muted">Última actualización: 27 de febrero de 2026</p>
           <p>
-            En <strong>SmartLining</strong>, nos tomamos muy en serio la privacidad y protección de tus datos. Este
-            documento explica qué datos recogemos, cómo los utilizamos y cuáles son tus derechos.
+            En <strong>SmartLining</strong>, nos tomamos muy en serio la privacidad y protección de
+            tus datos. Este documento explica qué datos recogemos, cómo los utilizamos y cuáles son
+            tus derechos.
           </p>
           <div className="sl-note">
-            <strong>Importante:</strong> Esta es una aplicación de demostración con datos simulados (mock). En
-            producción se aplicarían medidas adicionales de seguridad y cumplimiento.
+            <strong>Importante:</strong> Esta es una aplicación de demostración con datos simulados
+            (mock). En producción se aplicarían medidas adicionales de seguridad y cumplimiento.
           </div>
         </section>
 
         <section className="sl-card">
           <h3>Política de Cookies</h3>
-          <p>SmartLining utiliza cookies estrictamente necesarias para el correcto funcionamiento del servicio:</p>
+          <p>
+            SmartLining utiliza cookies estrictamente necesarias para el correcto funcionamiento del
+            servicio:
+          </p>
           <ul>
             <li>
-              <strong>smartlining_turn:</strong> Cookie temporal que identifica tu turno en la cola. Se elimina
-              automáticamente al completar el turno o tras 24 horas.
+              <strong>smartlining_turn:</strong> Cookie temporal que identifica tu turno en la cola.
+              Se elimina automáticamente al completar el turno o tras 24 horas.
             </li>
           </ul>
         </section>

@@ -14,7 +14,13 @@ import { Line } from 'react-chartjs-2';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
-export default function ServiceTimeWidget({ colaId = 1, days = 14 }: { colaId?: number; days?: number }) {
+export default function ServiceTimeWidget({
+  colaId = 1,
+  days = 14,
+}: {
+  colaId?: number;
+  days?: number;
+}) {
   const [series, setSeries] = useState<Array<{ date: string; avgMinutes: number | null }>>([]);
   const [loading, setLoading] = useState(false);
 
@@ -41,13 +47,13 @@ export default function ServiceTimeWidget({ colaId = 1, days = 14 }: { colaId?: 
     };
   }, [colaId, days]);
 
-  const labels = series.map((s) => s.date);
+  const labels = series.map(s => s.date);
   const data = {
     labels,
     datasets: [
       {
         label: 'Avg. Service Time (min)',
-        data: series.map((s) => (s.avgMinutes === null ? null : s.avgMinutes)),
+        data: series.map(s => (s.avgMinutes === null ? null : s.avgMinutes)),
         fill: false,
         borderColor: '#007bff',
         backgroundColor: '#007bff',
@@ -71,7 +77,15 @@ export default function ServiceTimeWidget({ colaId = 1, days = 14 }: { colaId?: 
   };
 
   return (
-    <div style={{ background: 'white', padding: 12, borderRadius: 8, border: '1px solid #eee', maxWidth: 640 }}>
+    <div
+      style={{
+        background: 'white',
+        padding: 12,
+        borderRadius: 8,
+        border: '1px solid #eee',
+        maxWidth: 640,
+      }}
+    >
       <h4 style={{ margin: '0 0 8px 0' }}>Avg. Service Time (min) — last {days} days</h4>
       {loading ? (
         <p>Loading...</p>

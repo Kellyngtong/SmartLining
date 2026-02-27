@@ -17,23 +17,33 @@ export default function LandingPage() {
       <main style={{ marginTop: 36, maxWidth: 800 }}>
         <h2>Welcome to SmartLining</h2>
         <p>
-          SmartLining is a lightweight virtual-queue management system. Scan the QR, join the queue, and
-          see your ticket number and estimated wait time on your phone.
+          SmartLining is a lightweight virtual-queue management system. Scan the QR, join the queue,
+          and see your ticket number and estimated wait time on your phone.
         </p>
 
         <section style={{ marginTop: 24 }}>
           <h3>Try the demo</h3>
           <p>
-            Use the demo queue to create a ticket. This runs against your local backend API and demonstrates
-            the Join Queue → Ticket Confirmation flow.
+            Use the demo queue to create a ticket. This runs against your local backend API and
+            demonstrates the Join Queue → Ticket Confirmation flow.
           </p>
           <Link to="/join-queue/1">
-            <button style={{ padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}>Join Demo Queue</button>
+            <button style={{ padding: '8px 12px', borderRadius: 6, cursor: 'pointer' }}>
+              Join Demo Queue
+            </button>
           </Link>
         </section>
       </main>
 
-      <footer style={{ marginTop: 48, color: '#666', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <footer
+        style={{
+          marginTop: 48,
+          color: '#666',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
         <small>Running locally — Backend API at {apiUrl}</small>
         <div>
           <Link to="/privacy" style={{ marginLeft: 12 }}>

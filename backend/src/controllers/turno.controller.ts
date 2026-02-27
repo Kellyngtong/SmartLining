@@ -54,8 +54,6 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-
-
 /**
  * GET /api/turnos/:id
  * Obtener detalle de un turno con atención y valoración
@@ -148,8 +146,7 @@ router.get('/me', async (req: Request, res: Response) => {
     const turnosEnAtencion = turnosActivos.filter((t) => t.estado === 'EN_ATENCION');
     const turnosEnEspera = turnosActivos.filter((t) => t.estado === 'EN_ESPERA');
 
-    const miPosicion =
-      turnosEnEspera.findIndex((t) => t.id_turno === turno.id_turno) + 1 || 1;
+    const miPosicion = turnosEnEspera.findIndex((t) => t.id_turno === turno.id_turno) + 1 || 1;
 
     let tiempoPromedioPorTurno = 5;
     try {
@@ -263,7 +260,10 @@ router.post('/', async (req: Request, res: Response) => {
           tiempoPromedioPorTurno = Math.max(1, Math.round((avgSeconds / 60) * 100) / 100);
         }
       } catch (e) {
-        logger.warn('Failed to compute average atencion duration for cookie expiry, using fallback', e);
+        logger.warn(
+          'Failed to compute average atencion duration for cookie expiry, using fallback',
+          e
+        );
       }
 
       const tiempoEstimado = miPosicion > 0 ? (miPosicion - 1) * tiempoPromedioPorTurno : 0;

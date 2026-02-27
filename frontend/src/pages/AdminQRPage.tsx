@@ -202,19 +202,42 @@ export default function AdminQRPage() {
         <div style={styles.selectorSection}>
           <h2 style={styles.sectionTitle}>Selecciona una Cola</h2>
           <div style={{ marginBottom: 12 }}>
-            <input placeholder="Nombre" value={formName} onChange={(e) => setFormName(e.target.value)} style={{ marginRight: 8 }} />
-            <input placeholder="Descripción" value={formDesc} onChange={(e) => setFormDesc(e.target.value)} style={{ marginRight: 8 }} />
+            <input
+              placeholder="Nombre"
+              value={formName}
+              onChange={e => setFormName(e.target.value)}
+              style={{ marginRight: 8 }}
+            />
+            <input
+              placeholder="Descripción"
+              value={formDesc}
+              onChange={e => setFormDesc(e.target.value)}
+              style={{ marginRight: 8 }}
+            />
             <label style={{ marginRight: 8 }}>
               Activa
-              <input type="checkbox" checked={formActive} onChange={(e) => setFormActive(e.target.checked)} style={{ marginLeft: 6 }} />
+              <input
+                type="checkbox"
+                checked={formActive}
+                onChange={e => setFormActive(e.target.checked)}
+                style={{ marginLeft: 6 }}
+              />
             </label>
             <button onClick={handleCreate} disabled={processing} style={{ marginRight: 8 }}>
               Crear
             </button>
-            <button onClick={handleSave} disabled={processing || !selectedQueue} style={{ marginRight: 8 }}>
+            <button
+              onClick={handleSave}
+              disabled={processing || !selectedQueue}
+              style={{ marginRight: 8 }}
+            >
               Guardar
             </button>
-            <button onClick={handleDelete} disabled={processing || !selectedQueue} style={{ background: '#ff4d4f', color: 'white' }}>
+            <button
+              onClick={handleDelete}
+              disabled={processing || !selectedQueue}
+              style={{ background: '#ff4d4f', color: 'white' }}
+            >
               Eliminar
             </button>
           </div>
@@ -244,9 +267,19 @@ export default function AdminQRPage() {
             <div style={styles.qrCard}>
               <div style={styles.qrDisplay} id={`qr-${selectedQueue.id_cola}`}>
                 {(() => {
-                  const payload = format === 'json' ? JSON.stringify(getQueuePayload(selectedQueue)) : getQueueUrl(selectedQueue.id_cola);
+                  const payload =
+                    format === 'json'
+                      ? JSON.stringify(getQueuePayload(selectedQueue))
+                      : getQueueUrl(selectedQueue.id_cola);
                   return (
-                    <QRCodeSVG value={payload} size={qrSize} level="H" includeMargin fgColor="#000000" bgColor="#ffffff" />
+                    <QRCodeSVG
+                      value={payload}
+                      size={qrSize}
+                      level="H"
+                      includeMargin
+                      fgColor="#000000"
+                      bgColor="#ffffff"
+                    />
                   );
                 })()}
               </div>
@@ -254,13 +287,19 @@ export default function AdminQRPage() {
               <div style={styles.qrInfo}>
                 <h3>{selectedQueue.nombre}</h3>
                 <p style={styles.qrUrl}>
-                  {format === 'json' ? JSON.stringify(getQueuePayload(selectedQueue)) : getQueueUrl(selectedQueue.id_cola)}
+                  {format === 'json'
+                    ? JSON.stringify(getQueuePayload(selectedQueue))
+                    : getQueueUrl(selectedQueue.id_cola)}
                 </p>
 
                 <div style={styles.controls}>
                   <label style={styles.sizeLabel}>
                     Formato:
-                    <select value={format} onChange={(e) => setFormat(e.target.value as any)} style={{ marginLeft: 8 }}>
+                    <select
+                      value={format}
+                      onChange={e => setFormat(e.target.value as any)}
+                      style={{ marginLeft: 8 }}
+                    >
                       <option value="url">URL (abre la página)</option>
                       <option value="json">JSON (incluye URL)</option>
                     </select>
@@ -289,7 +328,10 @@ export default function AdminQRPage() {
                   </button>
                   <button
                     onClick={() => {
-                      const payload = format === 'json' ? JSON.stringify(getQueuePayload(selectedQueue)) : getQueueUrl(selectedQueue.id_cola);
+                      const payload =
+                        format === 'json'
+                          ? JSON.stringify(getQueuePayload(selectedQueue))
+                          : getQueueUrl(selectedQueue.id_cola);
                       navigator.clipboard.writeText(payload);
                       alert('Contenido copiado al portapapeles');
                     }}
@@ -305,9 +347,20 @@ export default function AdminQRPage() {
                     <li>Descarga o imprime el código QR</li>
                     <li>Coloca el QR en un lugar visible en tu establecimiento</li>
                     <li>Los clientes escanean el QR con sus teléfonos</li>
-                    <li>Si el QR es de tipo <strong>URL</strong>, el escáner abrirá la página de registro en el frontend y se generará automáticamente el cliente y el turno.</li>
-                    <li>Si el QR es de tipo <strong>JSON</strong>, contiene un objeto con <code>queueid</code>, <code>clienteName</code> y una propiedad <code>url</code> que apunta a la página de registro; algunos escáneres mostrarán el JSON, otros permitirán abrir la URL incluida.</li>
-                    <li>Tras registrarse verán su número de turno y tiempo estimado y el sistema comenzará a rastrear su avance.</li>
+                    <li>
+                      Si el QR es de tipo <strong>URL</strong>, el escáner abrirá la página de
+                      registro en el frontend y se generará automáticamente el cliente y el turno.
+                    </li>
+                    <li>
+                      Si el QR es de tipo <strong>JSON</strong>, contiene un objeto con{' '}
+                      <code>queueid</code>, <code>clienteName</code> y una propiedad{' '}
+                      <code>url</code> que apunta a la página de registro; algunos escáneres
+                      mostrarán el JSON, otros permitirán abrir la URL incluida.
+                    </li>
+                    <li>
+                      Tras registrarse verán su número de turno y tiempo estimado y el sistema
+                      comenzará a rastrear su avance.
+                    </li>
                   </ol>
                 </div>
               </div>

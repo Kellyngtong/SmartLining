@@ -8,7 +8,8 @@ export function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      navigate('/dashboard');
+      const destination = user.rol === 'EMPLEADO' ? '/operator' : '/dashboard';
+      navigate(destination);
     }
   }, [user, navigate]);
 
@@ -22,7 +23,7 @@ export function LoginPage() {
 
     try {
       await login(email, password);
-      navigate('/dashboard');
+      // navigation handled by effect when `user` is set (redirect based on role)
     } catch {
       // Error ya manejado en el store
     }
@@ -47,6 +48,7 @@ export function LoginPage() {
               type="email"
               required
               defaultValue="admin@smartlining.com"
+              // Default to an employee account for quick access
               style={styles.input}
               disabled={isLoading}
             />
@@ -62,6 +64,7 @@ export function LoginPage() {
               type="password"
               required
               defaultValue="admin123"
+              // Default to an employee account password
               style={styles.input}
               disabled={isLoading}
             />
@@ -75,9 +78,18 @@ export function LoginPage() {
         <p style={styles.footer}>
           Credenciales de prueba:
           <br />
+          <strong>Administrador</strong>
+          <br />
           Email: admin@smartlining.com
           <br />
           Contraseña: admin123
+          <br />
+          <br />
+          <strong>Empleado</strong>
+          <br />
+          Email: empleado1@smartlining.com
+          <br />
+          Contraseña: empleado123
         </p>
       </div>
     </div>
