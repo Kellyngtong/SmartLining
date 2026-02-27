@@ -124,7 +124,7 @@ app.get('/api/turnos/me', async (req, res) => {
         userInfo: {
           turnoId: turno.id_turno,
           numeroDeTurno: turno.numero_turno,
-          clienteNombre: turno.cliente?.nombre,
+          clienteNombre: turno.cliente?.id_cliente,
           estado: turno.estado,
           miPosicion,
           tiempoEstimadoMinutos: tiempoEstimado,

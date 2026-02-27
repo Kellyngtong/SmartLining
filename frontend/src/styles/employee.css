@@ -1,4 +1,3 @@
-/* Employee panel styles */
 .employee-root {
   min-height: 100vh;
   background: linear-gradient(180deg, var(--sl-cream) 0%, #f0f0f0 100%);
@@ -59,6 +58,40 @@
 }
 .ticket-item.called {
   background: rgba(255, 235, 0, 0.08);
+}
+
+.ticket-item.next {
+  border-left: 4px solid var(--sl-amber);
+  background: rgba(255, 244, 179, 0.35);
+}
+
+.current-ticket {
+  margin-bottom: 12px;
+  border-radius: 10px;
+  padding: 18px;
+  background: linear-gradient(90deg, #fff3b0 0%, #ffd54f 100%);
+  color: var(--sl-black);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+.current-ticket-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.current-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #6b4f00;
+}
+.current-number {
+  font-size: 48px;
+  font-weight: 900;
+  margin: 6px 0;
+  color: #3b2b00;
+}
+.current-meta {
+  font-size: 14px;
+  color: #5a4630;
 }
 .ticket-number {
   font-size: 18px;

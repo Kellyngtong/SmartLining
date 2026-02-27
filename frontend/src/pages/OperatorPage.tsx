@@ -9,6 +9,7 @@ export default function OperatorPage() {
   const [pending, setPending] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [calledTicket, setCalledTicket] = useState<any | null>(null);
+  const [nextTicketId, setNextTicketId] = useState<number | null>(null);
   const [serviceAvg, setServiceAvg] = useState<number | null>(null);
   const navigate = useNavigate();
 
@@ -37,7 +38,10 @@ export default function OperatorPage() {
         const resp = await apiClient.getTickets(1, 200, 'EN_ESPERA', selectedQueue);
         const payload: any = resp?.data ?? resp;
         const items = payload?.data ?? payload ?? [];
-        if (mounted) setPending(items);
+        if (mounted) {
+          setPending(items);
+          setNextTicketId(items.length > 0 ? items[0].id_turno : null);
+        }
       } catch (e) {
         console.error('Error loading tickets', e);
       } finally {
@@ -79,7 +83,9 @@ export default function OperatorPage() {
         // refresh pending
         const r = await apiClient.getTickets(1, 200, 'EN_ESPERA', selectedQueue);
         const payload: any = r?.data ?? r;
-        setPending(payload?.data ?? payload ?? []);
+          const refreshed = payload?.data ?? payload ?? [];
+          setPending(refreshed);
+          setNextTicketId(refreshed.length > 0 ? refreshed[0].id_turno : null);
         // navigate to ticket confirmation view for operator if needed
         navigate('/ticket-confirmation', { state: { ticketId: ticket.id_turno || ticket.id } });
       } else {
@@ -151,6 +157,16 @@ export default function OperatorPage() {
         </aside>
 
         <main className="employee-card">
+          {/* Current ticket highlighted */}
+          {calledTicket && (
+            <div className="current-ticket">
+              <div className="current-ticket-inner">
+                <div className="current-label">TURNO ACTUAL</div>
+                <div className="current-number">#{calledTicket.numero_turno}</div>
+                <div className="current-meta">Cliente {calledTicket.id_cliente} · Cola {calledTicket.id_cola}</div>
+              </div>
+            </div>
+          )}
           <div
             style={{
               display: 'flex',
@@ -171,10 +187,12 @@ export default function OperatorPage() {
 
           <div className="ticket-list">
             {pending.length === 0 && <p className="muted">No hay turnos en espera</p>}
-            {pending.map((t: any) => (
+            {pending.map((t: any, idx: number) => (
               <div
                 key={t.id_turno}
-                className={`ticket-item ${calledTicket?.id_turno === t.id_turno ? 'called' : ''}`}
+                className={`ticket-item ${calledTicket?.id_turno === t.id_turno ? 'called' : ''} ${
+                  idx === 0 ? 'next' : ''
+                }`}
               >
                 <div>
                   <div className="ticket-number">#{t.numero_turno}</div>
