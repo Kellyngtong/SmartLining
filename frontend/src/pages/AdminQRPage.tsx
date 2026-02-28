@@ -4,6 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { apiClient } from '../services/api';
 import { useAuthStore } from '../store/auth.store';
 import '../styles/global.css';
+import { Button } from '@/components/Button';
 
 interface Queue {
   id_cola: number;
@@ -12,10 +13,10 @@ interface Queue {
   activa: boolean;
 }
 /**
-* AdminQRPage component - allows administrators to generate QR codes for their queues
-* Admins can create, edit, and delete queues, and generate QR codes that clients can scan to join the queue.
-* This page is protected and only accessible to users with the ADMINISTRADOR role.
-*/
+ * AdminQRPage component - allows administrators to generate QR codes for their queues
+ * Admins can create, edit, and delete queues, and generate QR codes that clients can scan to join the queue.
+ * This page is protected and only accessible to users with the ADMINISTRADOR role.
+ */
 
 export default function AdminQRPage() {
   const navigate = useNavigate();
@@ -197,16 +198,32 @@ export default function AdminQRPage() {
 
   return (
     <div style={styles.container}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>🎯 Generador de Códigos QR</h1>
-        <p style={styles.subtitle}>Genera códigos QR para que los clientes se unan a tus colas</p>
-      </div>
+      <header style={styles.header}>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div>
+            <h1 style={styles.title}>Generador de Códigos QR</h1>
+            <p style={styles.subtitle}>
+              Genera códigos QR para que los clientes se unan a tus colas
+            </p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <Button
+            variant="outline"
+            onClick={() => navigate('/dashboard')}
+            style={{ backgroundColor: 'black' }}
+          >
+            Volver al Dashboard
+          </Button>
+          <Button onClick={refreshQueues}>Actualizar colas</Button>
+        </div>
+      </header>
 
       <div style={styles.content}>
         {/* Selector de cola */}
         <div style={styles.selectorSection}>
           <h2 style={styles.sectionTitle}>Selecciona una Cola</h2>
-          <div style={{ marginBottom: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0.5, marginBottom: '2rem' }}>
             <input
               placeholder="Nombre"
               value={formName}
@@ -228,23 +245,21 @@ export default function AdminQRPage() {
                 style={{ marginLeft: 6 }}
               />
             </label>
-            <button onClick={handleCreate} disabled={processing} style={{ marginRight: 8 }}>
-              Crear
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={processing || !selectedQueue}
-              style={{ marginRight: 8 }}
-            >
-              Guardar
-            </button>
-            <button
-              onClick={handleDelete}
-              disabled={processing || !selectedQueue}
-              style={{ background: '#ff4d4f', color: 'white' }}
-            >
-              Eliminar
-            </button>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <Button onClick={handleCreate} disabled={processing}>
+                Crear
+              </Button>
+              <Button onClick={handleSave} disabled={processing || !selectedQueue}>
+                Guardar
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={processing || !selectedQueue}
+              >
+                Eliminar
+              </Button>
+            </div>
           </div>
           <div style={styles.queueGrid}>
             {queues.map(queue => (
@@ -325,13 +340,9 @@ export default function AdminQRPage() {
                 </div>
 
                 <div style={styles.buttonGroup}>
-                  <button onClick={() => handleDownloadQR(selectedQueue)} style={styles.button}>
-                    ⬇️ Descargar QR
-                  </button>
-                  <button onClick={() => handlePrintQR()} style={styles.button}>
-                    🖨️ Imprimir
-                  </button>
-                  <button
+                  <Button onClick={() => handleDownloadQR(selectedQueue)}>⬇️ Descargar QR</Button>
+                  <Button onClick={() => handlePrintQR()}>🖨️ Imprimir</Button>
+                  <Button
                     onClick={() => {
                       const payload =
                         format === 'json'
@@ -340,10 +351,9 @@ export default function AdminQRPage() {
                       navigator.clipboard.writeText(payload);
                       alert('Contenido copiado al portapapeles');
                     }}
-                    style={styles.button}
                   >
                     📋 Copiar contenido
-                  </button>
+                  </Button>
                 </div>
 
                 <div style={styles.instructions}>
@@ -391,21 +401,23 @@ const styles = {
     borderRadius: '8px',
   },
   header: {
-    textAlign: 'center' as const,
-    marginBottom: '40px',
-    paddingBottom: '20px',
-    borderBottom: '2px solid #007bff',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '24px',
+    paddingBottom: '12px',
+    borderBottom: '1px solid var(--color-border)',
   },
   title: {
-    fontSize: '32px',
-    fontWeight: 'bold',
-    margin: '0 0 10px 0',
-    color: '#333',
+    fontSize: '28px',
+    fontWeight: 700,
+    margin: 0,
+    color: 'var(--sl-black)',
   },
   subtitle: {
-    fontSize: '16px',
-    color: '#666',
     margin: 0,
+    color: 'var(--color-text-secondary)',
+    fontSize: 14,
   },
   content: {
     display: 'grid',
@@ -438,9 +450,9 @@ const styles = {
     transition: 'all 0.3s ease',
   },
   queueCardSelected: {
-    borderColor: '#007bff',
-    backgroundColor: '#e8f4f8',
-    boxShadow: '0 2px 8px rgba(0, 123, 255, 0.2)',
+    borderColor: '#ffd700',
+    backgroundColor: '#fff6c230',
+    boxShadow: '0 2px 8px #fff6c230',
   },
   queueName: {
     margin: '0 0 5px 0',
@@ -517,7 +529,7 @@ const styles = {
     padding: '10px',
     fontSize: '14px',
     fontWeight: 'bold',
-    backgroundColor: '#007bff',
+    backgroundColor: '#ffd700',
     color: 'white',
     border: 'none',
     borderRadius: '6px',
@@ -526,8 +538,8 @@ const styles = {
   instructions: {
     marginTop: '15px',
     padding: '15px',
-    backgroundColor: '#e8f5e9',
-    borderLeft: '4px solid #4caf50',
+    background: '#fff6c230',
+    border: '2px solid #ffd700',
     borderRadius: '4px',
   },
 };

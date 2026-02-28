@@ -99,7 +99,8 @@ app.get('/api/turnos/me', async (req, res) => {
       orderBy: { fecha_hora_creacion: 'asc' },
     });
     const turnosEnEspera = turnosActivos.filter((t) => t.estado === 'EN_ESPERA');
-    const miPosicion = turnosEnEspera.findIndex((t) => t.id_turno === turno.id_turno) + 1 || 1;
+    const foundIndex = turnosEnEspera.findIndex((t) => t.id_turno === turno.id_turno);
+    const miPosicion = foundIndex === -1 ? 0 : foundIndex + 1;
 
     let tiempoPromedioPorTurno = 5;
     try {
