@@ -74,7 +74,6 @@ async function main() {
     if (admin) empleadoIds.push(admin.id_usuario);
   }
   console.log('📝 Usuarios asegurados (admin + empleados)');
-  
 
   // Ensure many clients
   const CLIENT_COUNT = 200;
@@ -172,7 +171,7 @@ async function main() {
         );
         if (estado === EstadoTurno.FINALIZADO && startAt && endAt) {
           const durSec = Math.round((endAt.getTime() - startAt.getTime()) / 1000);
-          const empleadoId = empleadoIds.length ? empleadoIds[(j % empleadoIds.length)] : null;
+          const empleadoId = empleadoIds.length ? empleadoIds[j % empleadoIds.length] : null;
           if (empleadoId) {
             await prisma.atencion.create({
               data: {
@@ -236,7 +235,7 @@ async function main() {
         );
         if (estado === EstadoTurno.FINALIZADO && startAt && endAt) {
           const durSec = Math.round((endAt.getTime() - startAt.getTime()) / 1000);
-          const empleadoId = empleadoIds.length ? empleadoIds[(k % empleadoIds.length)] : null;
+          const empleadoId = empleadoIds.length ? empleadoIds[k % empleadoIds.length] : null;
           if (empleadoId) {
             await prisma.atencion.create({
               data: {

@@ -15,7 +15,6 @@ import {
 // Header rendering handled by App layout
 
 export default function LandingPage() {
-
   const features = [
     {
       icon: <QrCode className="icon-lg" />,

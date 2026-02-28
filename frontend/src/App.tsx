@@ -23,11 +23,11 @@ function App() {
     useAuthStore.getState().restoreSession();
   }, []);
 
-    function Layout() {
+  function Layout() {
     const location = useLocation();
     const hidePaths = ['/ticket-confirmation', '/admin/qr', '/join-queue', '/admin/dashboard'];
     const hideHeader = hidePaths.some(p => location.pathname.startsWith(p));
-      const user = useAuthStore((s) => s.user);
+    const user = useAuthStore(s => s.user);
 
     return (
       <>
@@ -52,7 +52,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          
+
           <Route
             path="/dashboard"
             element={
