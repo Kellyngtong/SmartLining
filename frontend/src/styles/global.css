@@ -28,8 +28,8 @@ html {
   --color-bg: var(--sl-cream);
   --color-text: var(--sl-black);
   --color-text-secondary: #666;
-  --color-border: rgba(26,26,26,0.06);
-  --shadow-soft: 0 6px 18px rgba(255,179,0,0.06);
+  --color-border: rgba(26, 26, 26, 0.06);
+  --shadow-soft: 0 6px 18px rgba(255, 179, 0, 0.06);
 }
 
 body {
@@ -75,18 +75,6 @@ h6 {
 p {
   margin-bottom: 1rem;
 }
-
-a {
-  color: var(--color-primary);
-  text-decoration: none;
-  transition: color 0.15s ease;
-}
-
-a:hover {
-  color: var(--color-highlight);
-}
-
-
 button {
   font-family: inherit;
   cursor: pointer;
@@ -97,7 +85,6 @@ button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
-
 
 input,
 textarea,
@@ -118,13 +105,11 @@ select:focus {
   box-shadow: 0 0 0 6px rgba(255, 215, 0, 0.08);
 }
 
-
 .container {
-  max-width: 1200px;
+  max-width: 80%;
   margin: 0 auto;
   padding: 0 20px;
 }
-
 
 .text-center {
   text-align: center;
@@ -178,12 +163,11 @@ select:focus {
   display: inline-block;
   width: 20px;
   height: 20px;
-  border: 3px solid rgba(0,0,0,0.06);
+  border: 3px solid rgba(0, 0, 0, 0.06);
   border-top: 3px solid var(--color-primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
-
 
 .btn-primary {
   background: var(--color-primary);

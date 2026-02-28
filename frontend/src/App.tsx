@@ -25,7 +25,7 @@ function App() {
   function Layout() {
     const location = useLocation();
     const hidePaths = ['/ticket-confirmation', '/admin/qr', '/join-queue', '/admin/dashboard'];
-    const hideHeader = hidePaths.some((p) => location.pathname.startsWith(p));
+    const hideHeader = hidePaths.some(p => location.pathname.startsWith(p));
 
     return (
       <>

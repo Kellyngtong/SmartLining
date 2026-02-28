@@ -1,5 +1,5 @@
 :root {
-  --header-bg: #0b5cff;
+  --header-bg: #1a1a1a;
   --header-text: #ffffff;
   --header-height: 64px;
 }
@@ -36,11 +36,15 @@
   width: 40px;
   height: 40px;
   border-radius: 8px;
-  background: rgba(255,255,255,0.12);
+  background: rgba(255, 255, 255, 0.12);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
+}
+
+.text-accent {
+  color: #ffd700;
 }
 
 .brand-title {
@@ -58,7 +62,7 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.18);
+  background: rgba(255, 255, 255, 0.18);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -73,12 +77,16 @@
 .logout-btn {
   background: transparent;
   color: var(--header-text);
-  border: 1px solid rgba(255,255,255,0.12);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   padding: 6px 10px;
   border-radius: 6px;
   cursor: pointer;
 }
 
 .logout-btn:hover {
-  background: rgba(255,255,255,0.06);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.demo-card {
+  width: 100%;
 }

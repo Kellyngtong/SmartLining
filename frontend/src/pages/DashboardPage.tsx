@@ -52,10 +52,19 @@ export function DashboardPage() {
       const tickets = (ticketsResp?.data ?? ticketsResp) || [];
 
       // compute counts (try multiple possible field names)
-      const items = Array.isArray(tickets?.data) ? tickets.data : Array.isArray(tickets) ? tickets : [];
+      const items = Array.isArray(tickets?.data)
+        ? tickets.data
+        : Array.isArray(tickets)
+          ? tickets
+          : [];
       const today = items.filter((t: any) =>
         isToday(
-          t.fecha_hora_creacion ?? t.fecha_hora_creacion ?? t.created_at ?? t.createdAt ?? t.fecha_creacion ?? t.fecha
+          t.fecha_hora_creacion ??
+            t.fecha_hora_creacion ??
+            t.created_at ??
+            t.createdAt ??
+            t.fecha_creacion ??
+            t.fecha
         )
       );
       const enteredToday = today.length;
@@ -74,10 +83,21 @@ export function DashboardPage() {
       const trend = normalizeTrend(stPayload);
       // compute estimated average from series if provided
       const rawSeries = stPayload?.series ?? stPayload?.data ?? [];
-      const vals = Array.isArray(rawSeries) ? rawSeries.map((s: any) => s.avgMinutes).filter((v: any) => v != null) : [];
-      const estimated = vals.length > 0 ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : null;
+      const vals = Array.isArray(rawSeries)
+        ? rawSeries.map((s: any) => s.avgMinutes).filter((v: any) => v != null)
+        : [];
+      const estimated =
+        vals.length > 0 ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : null;
 
       setQueueStats({ enteredToday, attended, waiting, trend, estimated });
+      console.log('Loaded queue stats', {
+        queueId: q.id_cola,
+        enteredToday,
+        attended,
+        waiting,
+        estimated,
+        trend,
+      });
     } catch (e) {
       setQueueStats(null);
     } finally {
@@ -105,7 +125,13 @@ export function DashboardPage() {
         if (qId) {
           const st: any = await apiClient.getServiceTimeTrend(qId, 30);
           const payload: any = st?.data ?? st;
-          const avg = payload?.average ?? null;
+          // compute average from returned series if API doesn't provide `average`
+          const series = payload?.series ?? payload?.data?.series ?? [];
+          const vals = Array.isArray(series)
+            ? series.map((s: any) => s.avgMinutes).filter((v: any) => v != null)
+            : [];
+          const avg =
+            vals.length > 0 ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : null;
           if (mounted) setAvgServiceMin(avg ?? null);
         } else {
           if (mounted) setAvgServiceMin(null);
@@ -117,6 +143,13 @@ export function DashboardPage() {
     loadKpis();
   }, [queues]);
 
+  // Auto-select first queue when queues load
+  useEffect(() => {
+    if (!selectedQueue && queues && queues.length > 0) {
+      selectQueueAndLoad(queues[0]);
+    }
+  }, [queues]);
+
   if (!user) {
     return <div>Acceso denegado</div>;
   }
@@ -124,7 +157,11 @@ export function DashboardPage() {
   return (
     <div style={styles.container}>
       <header style={styles.header}>
-        <img src="/assets/logo.jpg" alt="Logo" style={{ width: 54, height: 54, marginRight: 12, borderRadius: 14 }} />
+        <img
+          src="/assets/logo.jpg"
+          alt="Logo"
+          style={{ width: 54, height: 54, marginRight: 12, borderRadius: 14 }}
+        />
         <h1 style={styles.title}>Admin Dashboard</h1>
         <div style={styles.userInfo}>
           <span>{user.nombre}</span>
@@ -153,7 +190,9 @@ export function DashboardPage() {
 
             <div style={styles.kpiCard}>
               <div style={styles.kpiLabel}>Tiempo medio (min)</div>
-              <div style={styles.kpiValue}>{avgServiceMin ? Number(avgServiceMin).toFixed(1) : '—'}</div>
+              <div style={styles.kpiValue}>
+                {avgServiceMin ? Number(avgServiceMin).toFixed(1) : '—'}
+              </div>
             </div>
           </div>
 
@@ -162,7 +201,9 @@ export function DashboardPage() {
           {queuesLoading ? (
             <p>Cargando colas...</p>
           ) : queues.length > 0 ? (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 420px', gap: 16, marginTop: 12 }}>
+            <div
+              style={{ display: 'grid', gridTemplateColumns: '1fr 420px', gap: 16, marginTop: 12 }}
+            >
               <div style={styles.gridContainer}>
                 {queues.map((queue: any) => {
                   const selected = selectedQueue?.id_cola === queue.id_cola;
@@ -179,7 +220,9 @@ export function DashboardPage() {
                         transform: selected ? 'translateY(-2px)' : undefined,
                       }}
                     >
-                      <h3 style={{ color: selected ? 'var(--sl-black)' : 'inherit' }}>{queue.nombre}</h3>
+                      <h3 style={{ color: selected ? 'var(--sl-black)' : 'inherit' }}>
+                        {queue.nombre}
+                      </h3>
                       <p>{queue.descripcion || 'Sin descripción'}</p>
                       <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
                         Estado: {queue.activa ? 'Activa' : 'Inactiva'}
@@ -191,41 +234,120 @@ export function DashboardPage() {
 
               <div style={{ padding: 12 }}>
                 {selectedQueue ? (
-                  <div style={{ background: 'var(--color-bg)', padding: 12, borderRadius: 8, border: '1px solid var(--color-border)' }}>
+                  <div
+                    style={{
+                      background: 'var(--color-bg)',
+                      padding: 12,
+                      borderRadius: 8,
+                      border: '1px solid var(--color-border)',
+                    }}
+                  >
                     <h3 style={{ marginTop: 0 }}>{selectedQueue.nombre}</h3>
                     <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
-                      <div style={{ flex: 1, padding: 12, background: 'white', borderRadius: 8, textAlign: 'center' }}>
-                        <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Estimado espera (min)</div>
-                        <div style={{ fontSize: 22, fontWeight: 700 }}>{queueStats?.estimated ? Number(queueStats.estimated).toFixed(1) : '—'}</div>
+                      <div
+                        style={{
+                          flex: 1,
+                          padding: 12,
+                          background: 'white',
+                          borderRadius: 8,
+                          textAlign: 'center',
+                        }}
+                      >
+                        <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                          Estimado espera (min)
+                        </div>
+                        <div style={{ fontSize: 22, fontWeight: 700 }}>
+                          {queueStats?.estimated ? Number(queueStats.estimated).toFixed(1) : '—'}
+                        </div>
                       </div>
-                      <div style={{ flex: 1, padding: 12, background: 'white', borderRadius: 8, textAlign: 'center' }}>
-                        <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Entradas hoy (QR)</div>
-                        <div style={{ fontSize: 22, fontWeight: 700 }}>{queueStats?.enteredToday ?? '—'}</div>
+                      <div
+                        style={{
+                          flex: 1,
+                          padding: 12,
+                          background: 'white',
+                          borderRadius: 8,
+                          textAlign: 'center',
+                        }}
+                      >
+                        <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                          Entradas hoy (QR)
+                        </div>
+                        <div style={{ fontSize: 22, fontWeight: 700 }}>
+                          {queueStats?.enteredToday ?? '—'}
+                        </div>
                       </div>
-                      <div style={{ flex: 1, padding: 12, background: 'white', borderRadius: 8, textAlign: 'center' }}>
-                        <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Atendidos</div>
-                        <div style={{ fontSize: 22, fontWeight: 700 }}>{queueStats?.attended ?? '—'}</div>
+                      <div
+                        style={{
+                          flex: 1,
+                          padding: 12,
+                          background: 'white',
+                          borderRadius: 8,
+                          textAlign: 'center',
+                        }}
+                      >
+                        <div style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                          Atendidos
+                        </div>
+                        <div style={{ fontSize: 22, fontWeight: 700 }}>
+                          {queueStats?.attended ?? '—'}
+                        </div>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <div style={{ color: 'var(--color-text-secondary)' }}>Últimos {trendPeriod} días</div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: 8,
+                      }}
+                    >
+                      <div style={{ color: 'var(--color-text-secondary)' }}>
+                        Últimos {trendPeriod} días
+                      </div>
                       <div>
-                        <button className="btn-secondary" onClick={() => { setTrendPeriod(7); selectQueueAndLoad(selectedQueue); }} style={{ marginRight: 8 }}>7d</button>
-                        <button className="btn-secondary" onClick={() => { setTrendPeriod(30); selectQueueAndLoad(selectedQueue); }}>30d</button>
+                        <button
+                          className="btn-secondary"
+                          onClick={() => {
+                            setTrendPeriod(7);
+                            selectQueueAndLoad(selectedQueue);
+                          }}
+                          style={{ marginRight: 8 }}
+                        >
+                          7d
+                        </button>
+                        <button
+                          className="btn-secondary"
+                          onClick={() => {
+                            setTrendPeriod(30);
+                            selectQueueAndLoad(selectedQueue);
+                          }}
+                        >
+                          30d
+                        </button>
                       </div>
                     </div>
 
                     <div style={{ height: 120, background: 'white', padding: 8, borderRadius: 8 }}>
                       {loadingQueueStats ? (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }} className="spinner" />
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: '100%',
+                          }}
+                          className="spinner"
+                        />
                       ) : (
                         <TrendChart data={queueStats?.trend ?? []} />
                       )}
                     </div>
                   </div>
                 ) : (
-                  <div style={{ padding: 12, color: 'var(--color-text-secondary)' }}>Selecciona una cola para ver KPIs</div>
+                  <div style={{ padding: 12, color: 'var(--color-text-secondary)' }}>
+                    Selecciona una cola para ver KPIs
+                  </div>
                 )}
               </div>
             </div>
@@ -242,33 +364,45 @@ export function DashboardPage() {
   );
 }
 
-  function TrendChart({ data }: { data: number[] }) {
-    if (!data || data.length === 0) {
-      return <div style={{ color: 'var(--color-text-secondary)', padding: 12 }}>No hay datos</div>;
-    }
-    const w = Math.max(200, data.length * 12);
-    const h = 80;
-    const max = Math.max(...data);
-    if (!max || max <= 0) {
-      return <div style={{ color: 'var(--color-text-secondary)', padding: 12 }}>No hay datos</div>;
-    }
-    const barWidth = Math.max(6, Math.floor(w / data.length) - 4);
-
-    return (
-      <svg width="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
-        {data.map((v, i) => {
-          const barH = (v / max) * (h - 10);
-          const x = i * (barWidth + 4) + 6;
-          const y = h - barH;
-          return (
-            <g key={i}>
-              <rect x={x} y={y} width={barWidth} height={barH} rx={3} fill={i === data.length - 1 ? 'var(--sl-yellow)' : 'rgba(26,26,26,0.12)'} />
-            </g>
-          );
-        })}
-      </svg>
-    );
+function TrendChart({ data }: { data: number[] }) {
+  if (!data || data.length === 0) {
+    return <div style={{ color: 'var(--color-text-secondary)', padding: 12 }}>No hay datos</div>;
   }
+  const w = Math.max(200, data.length * 12);
+  const h = 80;
+  const max = Math.max(...data);
+  if (!max || max <= 0) {
+    return <div style={{ color: 'var(--color-text-secondary)', padding: 12 }}>No hay datos</div>;
+  }
+  const barWidth = Math.max(6, Math.floor(w / data.length) - 4);
+
+  return (
+    <svg
+      width="100%"
+      viewBox={`0 0 ${w} ${h}`}
+      preserveAspectRatio="none"
+      style={{ width: '100%', height: '100%' }}
+    >
+      {data.map((v, i) => {
+        const barH = (v / max) * (h - 10);
+        const x = i * (barWidth + 4) + 6;
+        const y = h - barH;
+        return (
+          <g key={i}>
+            <rect
+              x={x}
+              y={y}
+              width={barWidth}
+              height={barH}
+              rx={3}
+              fill={i === data.length - 1 ? 'var(--sl-yellow)' : 'rgba(26,26,26,0.12)'}
+            />
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
@@ -330,7 +464,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: 14,
     borderRadius: 8,
     boxShadow: 'var(--shadow-soft)',
-    backgroundColor: 'var(--color-bg)'
+    backgroundColor: 'var(--color-bg)',
   },
   kpiLabel: { fontSize: 13, color: 'var(--color-text-secondary)' },
   kpiValue: { fontSize: 28, fontWeight: 800, color: 'var(--sl-yellow)' },

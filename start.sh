@@ -1,8 +1,11 @@
-#!/bin/bash
-
 # ==========================================
 # SmartLining Docker Startup Script
+#
+# Muy buenas! Este script es tu punto de partida para levantar toda la aplicación SmartLining usando Docker.
+# Aquí te guiaré paso a paso para que puedas iniciar tu entorno de desarrollo o producción con facilidad.
 # ==========================================
+
+
 
 set -e
 

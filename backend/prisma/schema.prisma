@@ -44,7 +44,7 @@ enum UserRole {
 model Cliente {
   id_cliente    Int       @id @default(autoincrement())
   nombre        String    @db.VarChar(100)
-  client_token  String?   @unique
+  client_token  String?
   fecha_creacion DateTime  @default(now())
   origen        String    @default("QR") @db.VarChar(50)
 
