@@ -5,11 +5,11 @@ import ServiceTimeWidget from '../components/ServiceTimeWidget';
 import { apiClient } from '../services/api';
 
 /**
-* DashboardPage component - main admin dashboard showing queues and KPIs
-* This page is protected and only accessible to authenticated users. It displays a list of queues,
-* key performance indicators (KPIs) like total pending tickets and average service time, and allows
-* admins to select a queue to see more detailed stats and trends.
-*/
+ * DashboardPage component - main admin dashboard showing queues and KPIs
+ * This page is protected and only accessible to authenticated users. It displays a list of queues,
+ * key performance indicators (KPIs) like total pending tickets and average service time, and allows
+ * admins to select a queue to see more detailed stats and trends.
+ */
 export function DashboardPage() {
   const { user, logout } = useAuthStore();
   const { queues, fetchQueues, isLoading: queuesLoading } = useQueueStore();
@@ -34,16 +34,17 @@ export function DashboardPage() {
   };
 
   const normalizeTrend = (payload: any) => {
-    // Support backend shape: { success: true, data: { series: [{date, avgMinutes}] } }
+    // Return an array of { label, value } for better tooltips
     const series = payload?.data?.series ?? payload?.series ?? payload?.data ?? payload ?? [];
     if (!Array.isArray(series)) return [];
     return series.map((item: any) => {
       const v = item.avgMinutes ?? item.value ?? item.y ?? null;
-      return v == null ? 0 : Number(v);
+      const label = item.date ?? item.x ?? item.label ?? null;
+      return { label: label ? String(label) : null, value: v == null ? 0 : Number(v) };
     });
   };
 
-  const selectQueueAndLoad = async (q: any) => {
+  const selectQueueAndLoad = async (q: any, period?: number) => {
     setSelectedQueue(q);
     setLoadingQueueStats(true);
     try {
@@ -78,7 +79,8 @@ export function DashboardPage() {
       }).length;
 
       // service time trend
-      const stResp: any = await apiClient.getServiceTimeTrend(q.id_cola, trendPeriod);
+      const usedPeriod = period ?? trendPeriod;
+      const stResp: any = await apiClient.getServiceTimeTrend(q.id_cola, usedPeriod);
       const stPayload = stResp?.data ?? stResp ?? {};
       const trend = normalizeTrend(stPayload);
       // compute estimated average from series if provided
@@ -300,6 +302,7 @@ export function DashboardPage() {
                         justifyContent: 'space-between',
                         alignItems: 'center',
                         marginBottom: 8,
+                        height: '3rem',
                       }}
                     >
                       <div style={{ color: 'var(--color-text-secondary)' }}>
@@ -309,18 +312,26 @@ export function DashboardPage() {
                         <button
                           className="btn-secondary"
                           onClick={() => {
+                            if (trendPeriod === 7) return;
                             setTrendPeriod(7);
-                            selectQueueAndLoad(selectedQueue);
+                            if (selectedQueue) selectQueueAndLoad(selectedQueue, 7);
                           }}
-                          style={{ marginRight: 8 }}
+                          style={{
+                            marginRight: 8,
+                            border: trendPeriod === 7 ? '2px solid var(--sl-yellow)' : undefined,
+                          }}
                         >
                           7d
                         </button>
                         <button
                           className="btn-secondary"
                           onClick={() => {
+                            if (trendPeriod === 30) return;
                             setTrendPeriod(30);
-                            selectQueueAndLoad(selectedQueue);
+                            if (selectedQueue) selectQueueAndLoad(selectedQueue, 30);
+                          }}
+                          style={{
+                            border: trendPeriod === 30 ? '2px solid var(--sl-yellow)' : undefined,
                           }}
                         >
                           30d
@@ -364,43 +375,93 @@ export function DashboardPage() {
   );
 }
 
-function TrendChart({ data }: { data: number[] }) {
+function TrendChart({ data }: { data: { label: string | null; value: number }[] }) {
   if (!data || data.length === 0) {
     return <div style={{ color: 'var(--color-text-secondary)', padding: 12 }}>No hay datos</div>;
   }
   const w = Math.max(200, data.length * 12);
   const h = 80;
-  const max = Math.max(...data);
+  const max = Math.max(...data.map(d => d.value));
   if (!max || max <= 0) {
     return <div style={{ color: 'var(--color-text-secondary)', padding: 12 }}>No hay datos</div>;
   }
   const barWidth = Math.max(6, Math.floor(w / data.length) - 4);
 
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null);
+  const [svgWidth, setSvgWidth] = useState<number | null>(null);
+
+  const maxLeft = svgWidth ? Math.max(svgWidth - 140, 8) : undefined;
+  const leftPx = tooltipPos
+    ? typeof maxLeft === 'number'
+      ? Math.min(tooltipPos.x + 8, maxLeft)
+      : tooltipPos.x + 8
+    : 0;
+
   return (
-    <svg
-      width="100%"
-      viewBox={`0 0 ${w} ${h}`}
-      preserveAspectRatio="none"
-      style={{ width: '100%', height: '100%' }}
-    >
-      {data.map((v, i) => {
-        const barH = (v / max) * (h - 10);
-        const x = i * (barWidth + 4) + 6;
-        const y = h - barH;
-        return (
-          <g key={i}>
-            <rect
-              x={x}
-              y={y}
-              width={barWidth}
-              height={barH}
-              rx={3}
-              fill={i === data.length - 1 ? 'var(--sl-yellow)' : 'rgba(26,26,26,0.12)'}
-            />
-          </g>
-        );
-      })}
-    </svg>
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <svg
+        width="100%"
+        viewBox={`0 0 ${w} ${h}`}
+        preserveAspectRatio="none"
+        style={{ width: '100%', height: '100%' }}
+      >
+        {data.map((d, i) => {
+          const v = d.value;
+          const barH = (v / max) * (h - 10);
+          const x = i * (barWidth + 4) + 6;
+          const y = h - barH;
+          const fill = i === data.length - 1 ? 'var(--sl-yellow)' : 'rgba(26,26,26,0.12)';
+          return (
+            <g
+              key={i}
+              onMouseEnter={(e: any) => {
+                const rect = e.currentTarget.ownerSVGElement.getBoundingClientRect();
+                setSvgWidth(rect.width);
+                setHoverIndex(i);
+                setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+              }}
+              onMouseMove={(e: any) => {
+                const rect = e.currentTarget.ownerSVGElement.getBoundingClientRect();
+                // keep svgWidth updated in case of resize
+                setSvgWidth(rect.width);
+                setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+              }}
+              onMouseLeave={() => {
+                setHoverIndex(null);
+                setTooltipPos(null);
+              }}
+            >
+              <rect x={x} y={y} width={barWidth} height={barH} rx={3} fill={fill} />
+            </g>
+          );
+        })}
+      </svg>
+
+      {hoverIndex !== null && tooltipPos && (
+        <div
+          style={{
+            position: 'absolute',
+            left: `${leftPx}px`,
+            top: `${Math.max(tooltipPos.y - 28, 4)}px`,
+            pointerEvents: 'none',
+            background: 'rgba(0,0,0,0.85)',
+            color: 'white',
+            padding: '6px 8px',
+            borderRadius: 6,
+            fontSize: 12,
+            whiteSpace: 'nowrap',
+            zIndex: 20,
+            maxWidth: 140,
+          }}
+        >
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)' }}>
+            {data[hoverIndex].label ?? `#${hoverIndex + 1}`}
+          </div>
+          <div style={{ fontWeight: 700 }}>{String(data[hoverIndex].value)}</div>
+        </div>
+      )}
+    </div>
   );
 }
 
