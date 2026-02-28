@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { PrivateHeader } from './components/PrivateHeader';
+import PublicHeader from './components/PublicHeader';
 import { useAuthStore } from './store/auth.store';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { LoginPage } from './pages/LoginPage';
@@ -22,14 +23,15 @@ function App() {
     useAuthStore.getState().restoreSession();
   }, []);
 
-  function Layout() {
+    function Layout() {
     const location = useLocation();
     const hidePaths = ['/ticket-confirmation', '/admin/qr', '/join-queue', '/admin/dashboard'];
     const hideHeader = hidePaths.some(p => location.pathname.startsWith(p));
+      const user = useAuthStore((s) => s.user);
 
     return (
       <>
-        {!hideHeader && <PrivateHeader />}
+        {!hideHeader && (user ? <PrivateHeader /> : <PublicHeader />)}
         <Routes>
           {/* Public routes - Client flow */}
           <Route path="/" element={<LandingPage />} />

@@ -1,5 +1,4 @@
 import { Link } from 'react-router-dom';
-import PublicHeader from '../components/PublicHeader';
 import { Button } from '@/components/Button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/Card';
 import { ImageWithFallback } from '@/components/ImageWithFallback';
@@ -13,8 +12,10 @@ import {
   ArrowRight,
   CheckCircle,
 } from 'lucide-react';
+// Header rendering handled by App layout
 
 export default function LandingPage() {
+
   const features = [
     {
       icon: <QrCode className="icon-lg" />,
@@ -59,7 +60,7 @@ export default function LandingPage() {
 
   return (
     <div className="landing-page">
-      <PublicHeader />
+      {/* header rendered by App layout */}
       <section className="hero-section">
         <div className="container">
           <div className="hero-grid">
@@ -100,7 +101,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
       {/* FEATURES */}
       <section id="features" className="features-section">
         <div className="container">
@@ -126,7 +126,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
       {/* HOW IT WORKS */}
       <section className="how-section">
         <div className="container">
@@ -192,7 +191,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
       {/* BENEFITS */}
       <section className="benefits-section">
         <div className="container">
@@ -249,7 +247,6 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-
       {/* CTA */}
       <section className="cta-section">
         <div className="container text-center">
@@ -267,7 +264,6 @@ export default function LandingPage() {
           </Button>
         </div>
       </section>
-
       {/* FOOTER */}
       <footer className="footer">
         <div className="container">

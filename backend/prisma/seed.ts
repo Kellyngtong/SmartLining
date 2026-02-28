@@ -36,6 +36,8 @@ async function main() {
   console.log('✅ Colas creadas/aseguradas:', createdQueues.map((c) => c.nombre).join(', '));
 
   // Create or ensure some users (admin + empleados)
+  let empleadoIds: number[] = [];
+
   try {
     const adminPassword = await bcrypt.hash('admin123', 10);
     const empleadoPassword = await bcrypt.hash('empleado123', 10);
@@ -60,20 +62,19 @@ async function main() {
         rol: 'EMPLEADO' as any,
       },
     });
-    await prisma.usuario.upsert({
-      where: { email: 'empleado2@smartlining.com' },
-      update: {},
-      create: {
-        nombre: 'Carlos Empleado',
-        email: 'empleado2@smartlining.com',
-        password_hash: empleadoPassword,
-        rol: 'EMPLEADO' as any,
-      },
-    });
-    console.log('📝 Usuarios asegurados (admin + empleados)');
   } catch (e) {
     console.warn('No se pudieron crear usuarios (bcrypt import failed?)', e);
   }
+
+  // Ensure we have empleado IDs available for atenciones (fallback to admin if none)
+  const empleados = await prisma.usuario.findMany({ where: { rol: 'EMPLEADO' as any } });
+  empleadoIds = empleados.length ? empleados.map((e) => e.id_usuario) : [];
+  if (empleadoIds.length === 0) {
+    const admin = await prisma.usuario.findUnique({ where: { email: 'admin@smartlining.com' } });
+    if (admin) empleadoIds.push(admin.id_usuario);
+  }
+  console.log('📝 Usuarios asegurados (admin + empleados)');
+  
 
   // Ensure many clients
   const CLIENT_COUNT = 200;
@@ -143,9 +144,22 @@ async function main() {
         let estado: EstadoTurno = EstadoTurno.EN_ESPERA;
         if (r < 0.6) estado = EstadoTurno.FINALIZADO;
         else if (r < 0.8) estado = EstadoTurno.EN_ATENCION;
-        const llamadaAt = estado === EstadoTurno.EN_ESPERA ? null : new Date(createdAt.getTime() + (5 + Math.floor(Math.random() * 10)) * 60 * 1000);
-        const startAt = estado === EstadoTurno.FINALIZADO || estado === EstadoTurno.EN_ATENCION ? new Date((llamadaAt ?? createdAt).getTime() + (1 + Math.floor(Math.random() * 5)) * 60 * 1000) : null;
-        const endAt = estado === EstadoTurno.FINALIZADO ? new Date((startAt as Date).getTime() + (3 + Math.floor(Math.random() * 12)) * 60 * 1000) : null;
+        const llamadaAt =
+          estado === EstadoTurno.EN_ESPERA
+            ? null
+            : new Date(createdAt.getTime() + (5 + Math.floor(Math.random() * 10)) * 60 * 1000);
+        const startAt =
+          estado === EstadoTurno.FINALIZADO || estado === EstadoTurno.EN_ATENCION
+            ? new Date(
+                (llamadaAt ?? createdAt).getTime() + (1 + Math.floor(Math.random() * 5)) * 60 * 1000
+              )
+            : null;
+        const endAt =
+          estado === EstadoTurno.FINALIZADO
+            ? new Date(
+                (startAt as Date).getTime() + (3 + Math.floor(Math.random() * 12)) * 60 * 1000
+              )
+            : null;
         const turno = await createTurno(
           q.id_cola,
           cliente.id_cliente,
@@ -158,14 +172,17 @@ async function main() {
         );
         if (estado === EstadoTurno.FINALIZADO && startAt && endAt) {
           const durSec = Math.round((endAt.getTime() - startAt.getTime()) / 1000);
-          await prisma.atencion.create({
-            data: {
-              id_turno: turno.id_turno,
-              id_empleado: 1 + (j % 4),
-              duracion_atencion: durSec,
-              resultado: ResultadoAtencion.ATENDIDO,
-            },
-          });
+          const empleadoId = empleadoIds.length ? empleadoIds[(j % empleadoIds.length)] : null;
+          if (empleadoId) {
+            await prisma.atencion.create({
+              data: {
+                id_turno: turno.id_turno,
+                id_empleado: empleadoId,
+                duracion_atencion: durSec,
+                resultado: ResultadoAtencion.ATENDIDO,
+              },
+            });
+          }
         }
       }
     }
@@ -189,10 +206,24 @@ async function main() {
         const createdAt = new Date();
         createdAt.setUTCMinutes((k * 3) % 60, 0, 0);
         const cliente = clients[(k + q.id_cola) % clients.length];
-        const estado: EstadoTurno = k % 4 === 0 ? EstadoTurno.FINALIZADO : k % 3 === 0 ? EstadoTurno.EN_ATENCION : EstadoTurno.EN_ESPERA;
-        const llamadaAt = estado === EstadoTurno.EN_ESPERA ? null : new Date(createdAt.getTime() + (2 + (k % 5)) * 60 * 1000);
-        const startAt = estado === EstadoTurno.FINALIZADO || estado === EstadoTurno.EN_ATENCION ? new Date((llamadaAt ?? createdAt).getTime() + (1 + (k % 3)) * 60 * 1000) : null;
-        const endAt = estado === EstadoTurno.FINALIZADO ? new Date((startAt as Date).getTime() + (4 + (k % 8)) * 60 * 1000) : null;
+        const estado: EstadoTurno =
+          k % 4 === 0
+            ? EstadoTurno.FINALIZADO
+            : k % 3 === 0
+              ? EstadoTurno.EN_ATENCION
+              : EstadoTurno.EN_ESPERA;
+        const llamadaAt =
+          estado === EstadoTurno.EN_ESPERA
+            ? null
+            : new Date(createdAt.getTime() + (2 + (k % 5)) * 60 * 1000);
+        const startAt =
+          estado === EstadoTurno.FINALIZADO || estado === EstadoTurno.EN_ATENCION
+            ? new Date((llamadaAt ?? createdAt).getTime() + (1 + (k % 3)) * 60 * 1000)
+            : null;
+        const endAt =
+          estado === EstadoTurno.FINALIZADO
+            ? new Date((startAt as Date).getTime() + (4 + (k % 8)) * 60 * 1000)
+            : null;
         const turno = await createTurno(
           q.id_cola,
           cliente.id_cliente,
@@ -205,14 +236,17 @@ async function main() {
         );
         if (estado === EstadoTurno.FINALIZADO && startAt && endAt) {
           const durSec = Math.round((endAt.getTime() - startAt.getTime()) / 1000);
-          await prisma.atencion.create({
-            data: {
-              id_turno: turno.id_turno,
-              id_empleado: 1 + (k % 4),
-              duracion_atencion: durSec,
-              resultado: ResultadoAtencion.ATENDIDO,
-            },
-          });
+          const empleadoId = empleadoIds.length ? empleadoIds[(k % empleadoIds.length)] : null;
+          if (empleadoId) {
+            await prisma.atencion.create({
+              data: {
+                id_turno: turno.id_turno,
+                id_empleado: empleadoId,
+                duracion_atencion: durSec,
+                resultado: ResultadoAtencion.ATENDIDO,
+              },
+            });
+          }
         }
       }
     }
