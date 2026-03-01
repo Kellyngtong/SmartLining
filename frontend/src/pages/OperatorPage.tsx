@@ -73,7 +73,9 @@ export default function OperatorPage() {
           avg = payload.average;
         } else {
           const series = payload?.series ?? payload?.data?.series ?? [];
-          const nums = series.filter((s: any) => s && typeof s.avgMinutes === 'number').map((s: any) => s.avgMinutes as number);
+          const nums = series
+            .filter((s: any) => s && typeof s.avgMinutes === 'number')
+            .map((s: any) => s.avgMinutes as number);
           if (nums.length > 0) {
             const sum = nums.reduce((a: number, b: number) => a + b, 0);
             avg = Math.round((sum / nums.length) * 10) / 10;

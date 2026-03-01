@@ -120,7 +120,7 @@ export default function TicketConfirmationPage() {
           // on queue update ask server for latest info once
           void loadQueueInfo();
         });
-        es.onerror = (ev) => {
+        es.onerror = ev => {
           // Log SSE errors to help debugging
           // eslint-disable-next-line no-console
           console.warn('SSE error', ev);

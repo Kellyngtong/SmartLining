@@ -323,8 +323,14 @@ router.post('/:id/next', async (req: Request, res: Response) => {
     let totalEnAtencion = 0;
     try {
       totalEnEspera = await prisma.turno.count({ where: { id_cola: colaId, estado: 'EN_ESPERA' } });
-      totalEnAtencion = await prisma.turno.count({ where: { id_cola: colaId, estado: 'EN_ATENCION' } });
-      sse.sendSseEvent(colaId, 'queueUpdate', { totalEnEspera, totalEnAtencion, calledTurno: result });
+      totalEnAtencion = await prisma.turno.count({
+        where: { id_cola: colaId, estado: 'EN_ATENCION' },
+      });
+      sse.sendSseEvent(colaId, 'queueUpdate', {
+        totalEnEspera,
+        totalEnAtencion,
+        calledTurno: result,
+      });
     } catch (e) {
       // non-fatal
       logger.warn('Failed to send SSE update after call-next', e);
