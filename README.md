@@ -4,6 +4,9 @@ Plataforma de Gestión de Colas Virtuales y Analítica de Afluencia con Business
 
 SmartLining es una solución web moderna que transforma la gestión de colas presenciales en un proceso digitalizado con capacidades analíticas avanzadas.
 
+<img width="2069" height="1270" alt="image" src="https://github.com/user-attachments/assets/2d74ecde-c417-4c81-be95-f83d6a2249f6" />
+
+
 ## 🛠️ Stack Tecnológico
 
 **Backend:** Node.js v23+ | Express.js v5 | TypeScript v5 | Prisma v6 | MySQL 8.0.x  
