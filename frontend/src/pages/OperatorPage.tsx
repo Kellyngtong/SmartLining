@@ -149,7 +149,6 @@ export default function OperatorPage() {
     setLoading(true);
     try {
       const resp: any = await apiClient.callNext(selectedQueue);
-      // backend may return { data: { turno, totals } } or just the turno
       const payload = resp?.data ?? resp;
       const ticket = payload?.turno ?? payload;
       if (ticket) {
