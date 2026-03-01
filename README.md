@@ -71,7 +71,3 @@ npm run dev          # Iniciar dev server (localhost:5173)
 Admin:     admin@smartlining.com / admin123
 Empleado:  empleado1@smartlining.com / empleado123
 ```
-
----
-
-**Fase 1 ✅ Completada** | Última actualización: 5 feb 2026
