@@ -6,6 +6,11 @@ SmartLining es una solución web moderna que transforma la gestión de colas pre
 
 <img width="2069" height="1270" alt="image" src="https://github.com/user-attachments/assets/2d74ecde-c417-4c81-be95-f83d6a2249f6" />
 
+---
+
+<img width="1770" height="1263" alt="image" src="https://github.com/user-attachments/assets/42b93225-c0b0-4394-9441-2386f5e28377" />
+
+
 
 ## 🛠️ Stack Tecnológico
 
