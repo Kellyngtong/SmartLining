@@ -108,7 +108,32 @@ export default function TicketConfirmationPage() {
     loadQueueInfo();
     const interval = setInterval(loadQueueInfo, 3000); // Actualizar cada 3 segundos
 
-    return () => clearInterval(interval);
+    // Also subscribe to server-sent events for immediate refreshes when queue changes
+    let es: EventSource | null = null;
+    if (queueId) {
+      try {
+        es = new EventSource(`${import.meta.env.VITE_API_URL || '/api'}/events?queueId=${queueId}`);
+        es.addEventListener('open', () => {
+          // opened
+        });
+        es.addEventListener('queueUpdate', () => {
+          // on queue update ask server for latest info once
+          void loadQueueInfo();
+        });
+        es.onerror = (ev) => {
+          // Log SSE errors to help debugging
+          // eslint-disable-next-line no-console
+          console.warn('SSE error', ev);
+        };
+      } catch (e) {
+        // ignore if SSE not supported or blocked
+      }
+    }
+
+    return () => {
+      clearInterval(interval);
+      if (es) es.close();
+    };
   }, [queueId, ticketId]);
 
   const handlePrint = () => {
@@ -165,7 +190,7 @@ export default function TicketConfirmationPage() {
                   {loading
                     ? '...'
                     : typeof tiempoEstimado === 'number'
-                      ? `${tiempoEstimado} min`
+                      ? `${Math.trunc(tiempoEstimado)} min`
                       : '-'}
                 </span>
               </div>

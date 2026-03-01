@@ -66,7 +66,19 @@ export default function OperatorPage() {
       try {
         const resp = await apiClient.getServiceTimeTrend(selectedQueue, 30);
         const payload: any = resp?.data ?? resp;
-        const avg = payload?.average ?? null;
+        // Backend returns { data: { series: [{date, avgMinutes}] } }
+        // Try multiple shapes for compatibility
+        let avg: number | null = null;
+        if (typeof payload?.average === 'number') {
+          avg = payload.average;
+        } else {
+          const series = payload?.series ?? payload?.data?.series ?? [];
+          const nums = series.filter((s: any) => s && typeof s.avgMinutes === 'number').map((s: any) => s.avgMinutes as number);
+          if (nums.length > 0) {
+            const sum = nums.reduce((a: number, b: number) => a + b, 0);
+            avg = Math.round((sum / nums.length) * 10) / 10;
+          }
+        }
         setServiceAvg(avg || null);
       } catch (e) {
         // ignore
@@ -135,7 +147,9 @@ export default function OperatorPage() {
     setLoading(true);
     try {
       const resp: any = await apiClient.callNext(selectedQueue);
-      const ticket = resp?.data ?? resp;
+      // backend may return { data: { turno, totals } } or just the turno
+      const payload = resp?.data ?? resp;
+      const ticket = payload?.turno ?? payload;
       if (ticket) {
         setCalledTicket(ticket);
         // refresh pending

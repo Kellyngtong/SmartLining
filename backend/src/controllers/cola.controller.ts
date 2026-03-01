@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { ColaRepository } from '../repositories/cola.repository';
 import { getPaginationParams, formatPaginatedResponse } from '../repositories/base.repository';
 import { logger } from '../config/logger';
+import sse from '../sse';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -317,7 +318,26 @@ router.post('/:id/next', async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, error: 'No pending tickets' });
     }
 
-    return res.json({ success: true, data: result, message: 'Next ticket called' });
+    // Send a lightweight queue update to SSE subscribers for this queue
+    let totalEnEspera = 0;
+    let totalEnAtencion = 0;
+    try {
+      totalEnEspera = await prisma.turno.count({ where: { id_cola: colaId, estado: 'EN_ESPERA' } });
+      totalEnAtencion = await prisma.turno.count({ where: { id_cola: colaId, estado: 'EN_ATENCION' } });
+      sse.sendSseEvent(colaId, 'queueUpdate', { totalEnEspera, totalEnAtencion, calledTurno: result });
+    } catch (e) {
+      // non-fatal
+      logger.warn('Failed to send SSE update after call-next', e);
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        turno: result,
+        totals: { totalEnEspera, totalEnAtencion },
+      },
+      message: 'Next ticket called',
+    });
   } catch (error) {
     if (error instanceof Error) {
       logger.error('Error calling next ticket:', error.stack || error.message);

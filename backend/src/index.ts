@@ -200,6 +200,19 @@ app.get('/api/_routes_force', (req, res) => {
   res.json({ routes });
 });
 
+// SSE endpoint for queue updates: clients connect with ?queueId=NN
+import sse from './sse';
+app.get('/api/events', (req, res) => {
+  const q = req.query.queueId;
+  const queueId = q ? parseInt(String(q), 10) : NaN;
+  if (isNaN(queueId)) {
+    res.status(400).json({ success: false, error: 'Missing queueId param' });
+    return;
+  }
+  // Note: keep connection open
+  sse.addSseClient(queueId, req, res);
+});
+
 // SPA fallback: todas las rutas no-API van al index.html
 app.get('/', (req, res) => {
   res.sendFile(path.join(publicPath, 'index.html'));
