@@ -47,6 +47,9 @@ RUN npm ci && npm install terser
 # Copiar código fuente del frontend
 COPY frontend/src ./src
 
+# Copiar assets estáticos (public/ es copiado por Vite a dist/)
+COPY frontend/public ./public
+
 # Compilar React con Vite
 RUN npm run build
 

@@ -1,5 +1,4 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { QRCodeSVG } from 'qrcode.react';
 import { useRef, useState, useEffect } from 'react';
 import { apiClient } from '../services/api';
 import '../styles/global.css';

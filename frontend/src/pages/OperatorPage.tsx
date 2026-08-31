@@ -9,10 +9,8 @@ export default function OperatorPage() {
   const [pending, setPending] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [calledTicket, setCalledTicket] = useState<any | null>(null);
-  const [nextTicketId, setNextTicketId] = useState<number | null>(null);
   const [serviceAvg, setServiceAvg] = useState<number | null>(null);
   const navigate = useNavigate();
-  const [animateCalled, setAnimateCalled] = useState(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
@@ -43,7 +41,6 @@ export default function OperatorPage() {
         const items = payload?.data ?? payload ?? [];
         if (mounted) {
           setPending(items);
-          setNextTicketId(items.length > 0 ? items[0].id_turno : null);
         }
       } catch (e) {
         console.error('Error loading tickets', e);
@@ -93,8 +90,6 @@ export default function OperatorPage() {
   useEffect(() => {
     if (!calledTicket) return;
 
-    setAnimateCalled(true);
-
     const playSequence = async (count = 3) => {
       try {
         const AudioCtx = (window as any).AudioContext || (window as any).webkitAudioContext;
@@ -139,9 +134,6 @@ export default function OperatorPage() {
     };
 
     playSequence(3);
-
-    const t = setTimeout(() => setAnimateCalled(false), 1400);
-    return () => clearTimeout(t);
   }, [calledTicket]);
 
   const handleCallNext = async () => {
@@ -158,7 +150,6 @@ export default function OperatorPage() {
         const payload: any = r?.data ?? r;
         const refreshed = payload?.data ?? payload ?? [];
         setPending(refreshed);
-        setNextTicketId(refreshed.length > 0 ? refreshed[0].id_turno : null);
       } else {
         alert('No hay turnos en espera');
       }
