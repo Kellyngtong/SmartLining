@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { UtensilsCrossed } from 'lucide-react';
 import { useAuthStore } from '../store/auth.store';
 import '../styles/header.css';
 
@@ -19,6 +20,12 @@ const PrivateHeader: React.FC = () => {
     navigate('/login');
   };
 
+  const rol = user?.rol;
+  const isAdmin = rol === 'ADMINISTRADOR';
+
+  // La cola restaurante estándar (Restaurante El Buen Sabor, ID 7 de la seed)
+  const colaRestauranteId = 7;
+
   return (
     <header className="private-header">
       <div className="private-header-inner container">
@@ -33,6 +40,24 @@ const PrivateHeader: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button
+            className="header-link"
+            onClick={() => navigate(`/restaurante/${isAdmin ? 'admin' : 'operador'}/${colaRestauranteId}`)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              background: isAdmin ? 'rgba(255,215,0,0.15)' : 'rgba(255,215,0,0.1)',
+              color: '#ffd700',
+              border: '1px solid rgba(255,215,0,0.3)',
+              borderRadius: 8,
+              padding: '8px 14px',
+              fontWeight: 600,
+            }}
+          >
+            <UtensilsCrossed size={16} />
+            Restaurante
+          </button>
           <div style={{ color: '#fff', marginRight: 8 }}>{user?.nombre}</div>
           <button className="logout-btn" onClick={handleLogout}>
             Logout

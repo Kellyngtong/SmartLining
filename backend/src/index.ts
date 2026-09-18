@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { environment, isDevelopment } from './config/environment';
 import { logger } from './config/logger';
 import prisma from './config/prisma';
@@ -23,6 +24,13 @@ import eventoController from './controllers/evento.controller';
 import horarioColaController from './controllers/horarioCola.controller';
 import atencionController from './controllers/atencion.controller';
 import valoracionController from './controllers/valoracion.controller';
+import mesaController from './controllers/mesa.controller';
+import zonaController from './controllers/zona.controller';
+import reservaController from './controllers/reserva.controller';
+import waitlistController from './controllers/waitlist.controller';
+import asignacionController from './controllers/asignacion.controller';
+import salaController from './controllers/sala.controller';
+import publicRestaurantController from './controllers/publicRestaurant.controller';
 
 const app = express();
 
@@ -51,10 +59,16 @@ if (!isDevelopment) {
 
 // ============================================
 // Static Files Serving (Frontend)
+// Solo se activa si existe una build del frontend en ./public
 // ============================================
 
 const publicPath = path.join(__dirname, '../../public');
-app.use(express.static(publicPath));
+const hasFrontendBuild = fs.existsSync(path.join(publicPath, 'index.html'));
+if (hasFrontendBuild) {
+  app.use(express.static(publicPath));
+} else {
+  logger.info('⏭️  Frontend build not found in backend/public, skipping static serving');
+}
 
 // ============================================
 // Routes Setup
@@ -145,6 +159,13 @@ app.use('/api/eventos', eventoController);
 app.use('/api/horarios-cola', horarioColaController);
 app.use('/api/atenciones', atencionController);
 app.use('/api/valoraciones', valoracionController);
+app.use('/api/restaurant', mesaController);
+app.use('/api/restaurant', zonaController);
+app.use('/api/restaurant', reservaController);
+app.use('/api/restaurant', waitlistController);
+app.use('/api/restaurant', asignacionController);
+app.use('/api/restaurant', salaController);
+app.use('/api/restaurant/public', publicRestaurantController);
 
 // Debug helpers: collect routes including parent mount prefixes
 function collectRoutes(appInstance: any) {
@@ -213,8 +234,12 @@ app.get('/api/events', (req, res) => {
   sse.addSseClient(queueId, req, res);
 });
 
-// SPA fallback: todas las rutas no-API van al index.html
+// SPA fallback: todas las rutas no-API van al index.html (si hay build de frontend)
 app.get('/', (req, res) => {
+  if (!hasFrontendBuild) {
+    res.json({ success: true, service: 'SmartLining API', version: '1.0.0' });
+    return;
+  }
   res.sendFile(path.join(publicPath, 'index.html'));
 });
 
@@ -238,9 +263,15 @@ app.use((err: any, req: any, res: any, next: any) => {
 });
 
 app.use((req, res) => {
-  // Para rutas no API, servir index.html (SPA)
+  // Para rutas no API, servir index.html (SPA) si hay build de frontend
   if (!req.path.startsWith('/api')) {
-    return res.sendFile(path.join(publicPath, 'index.html'));
+    if (hasFrontendBuild) {
+      return res.sendFile(path.join(publicPath, 'index.html'));
+    }
+    return res.status(404).json({
+      error: 'NOT_FOUND',
+      message: `Route ${req.method} ${req.path} not found`,
+    });
   }
 
   res.status(404).json({

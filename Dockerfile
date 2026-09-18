@@ -41,8 +41,15 @@ COPY frontend/tsconfig*.json ./
 COPY frontend/vite.config.ts ./
 COPY frontend/index.html ./
 
-# Instalar dependencias (incluyendo dev para compilar)
-RUN npm ci && npm install terser
+# Instalar dependencias (incluyendo dev para compilar).
+# Se usa `npm install` (no `npm ci`) porque el lockfile se genera en macOS
+# y guarda los binarios nativos de rollup para ese SO. En la imagen Linux/alpine
+# `npm install` resuelve el binario nativo correcto (@rollup/rollup-linux-arm64-musl).
+# Además se instala explícitamente ese binario para evitar el bug de npm que
+# omite las dependencias opcionales nativas en alpine (npm/cli#4828).
+RUN npm install \
+    && npm install terser \
+    && npm install @rollup/rollup-linux-arm64-musl@4.57.1
 
 # Copiar código fuente del frontend
 COPY frontend/src ./src

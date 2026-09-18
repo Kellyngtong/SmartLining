@@ -6,6 +6,8 @@ export interface CreateUsuarioDTO {
   email: string;
   password_hash: string;
   rol: 'ADMINISTRADOR' | 'EMPLEADO';
+  licencia?: 'RESTAURANTE' | 'GENERAL';
+  id_empresa: number;
   activo?: boolean;
 }
 
@@ -13,6 +15,7 @@ export interface UpdateUsuarioDTO {
   nombre?: string;
   email?: string;
   rol?: 'ADMINISTRADOR' | 'EMPLEADO';
+  licencia?: 'RESTAURANTE' | 'GENERAL';
   activo?: boolean;
   password_hash?: string;
 }
@@ -23,6 +26,8 @@ export interface UsuarioRepositoryResult {
   email: string;
   password_hash: string;
   rol: 'ADMINISTRADOR' | 'EMPLEADO';
+  licencia: 'RESTAURANTE' | 'GENERAL';
+  id_empresa: number;
   activo: boolean;
   fecha_creacion: Date;
 }
@@ -80,6 +85,8 @@ export class UsuarioRepository extends BaseRepository<
         email: data.email,
         password_hash: data.password_hash,
         rol: data.rol,
+        licencia: data.licencia ?? 'GENERAL',
+        id_empresa: data.id_empresa,
         activo: data.activo ?? true,
       },
     });

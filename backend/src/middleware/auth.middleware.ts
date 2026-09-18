@@ -11,6 +11,8 @@ declare global {
         email: string;
         nombre: string;
         rol: string;
+        licencia: string;
+        id_empresa: number;
       };
       token?: string;
     }

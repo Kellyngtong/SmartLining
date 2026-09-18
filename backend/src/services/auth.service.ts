@@ -15,6 +15,8 @@ export interface AuthResponse {
     nombre: string;
     email: string;
     rol: string;
+    licencia: string;
+    id_empresa: number;
     activo: boolean;
     fecha_creacion: string;
   };
@@ -49,6 +51,8 @@ export class AuthService {
       userId: user.id_usuario.toString(),
       email: user.email,
       role: user.rol,
+      licencia: user.licencia,
+      idEmpresa: user.id_empresa,
     };
 
     const token = JwtService.generateToken(payload);
@@ -62,6 +66,8 @@ export class AuthService {
         nombre: user.nombre,
         email: user.email,
         rol: user.rol,
+        licencia: user.licencia,
+        id_empresa: user.id_empresa,
         activo: user.activo,
         fecha_creacion: user.fecha_creacion.toISOString(),
       },
@@ -82,6 +88,8 @@ export class AuthService {
         email: true,
         nombre: true,
         rol: true,
+        licencia: true,
+        id_empresa: true,
         activo: true,
       },
     });
@@ -95,6 +103,8 @@ export class AuthService {
       email: user.email,
       nombre: user.nombre,
       rol: user.rol,
+      licencia: user.licencia,
+      id_empresa: user.id_empresa,
     };
   }
 }

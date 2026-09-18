@@ -1,5 +1,16 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useRef, useState, useEffect } from 'react';
+import {
+  BarChart3,
+  Users,
+  Ticket as TicketIcon,
+  Clock,
+  Printer,
+  Download,
+  Loader2,
+  AlertTriangle,
+  ClipboardList,
+} from 'lucide-react';
 import { apiClient } from '../services/api';
 import '../styles/global.css';
 
@@ -179,12 +190,18 @@ export default function TicketConfirmationPage() {
           <div style={styles.statusContainer}>
             <div style={styles.statusCard}>
               <div style={styles.statusItem}>
-                <span style={styles.statusLabel}>📊 Tu Posición en Cola</span>
+                <span style={styles.statusLabel}>
+                  <BarChart3 size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+                  Tu Posición en Cola
+                </span>
                 <span style={styles.statusValue}>{miPosicion}</span>
               </div>
               <div style={styles.separator}></div>
               <div style={styles.statusItem}>
-                <span style={styles.statusLabel}>⏱️ Tiempo Estimado</span>
+                <span style={styles.statusLabel}>
+                  <Clock size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+                  Tiempo Estimado
+                </span>
                 <span style={{ ...styles.statusValue, color: '#ff9800' }}>
                   {loading
                     ? '...'
@@ -197,12 +214,18 @@ export default function TicketConfirmationPage() {
 
             <div style={styles.statusCard}>
               <div style={styles.statusItem}>
-                <span style={styles.statusLabel}>🎫 Turno Actual</span>
+                <span style={styles.statusLabel}>
+                  <TicketIcon size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+                  Turno Actual
+                </span>
                 <span style={styles.statusValue}>{turnoActual}</span>
               </div>
               <div style={styles.separator}></div>
               <div style={styles.statusItem}>
-                <span style={styles.statusLabel}>👥 En Espera</span>
+                <span style={styles.statusLabel}>
+                  <Users size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+                  En Espera
+                </span>
                 <span style={styles.statusValue}>{totalEnEspera}</span>
               </div>
             </div>
@@ -216,7 +239,16 @@ export default function TicketConfirmationPage() {
             <div style={styles.detail}>
               <span style={styles.detailLabel}>Estado:</span>
               <span style={styles.detailValue}>
-                🟢{' '}
+                <span
+                  style={{
+                    display: 'inline-block',
+                    width: 10,
+                    height: 10,
+                    borderRadius: '50%',
+                    backgroundColor: '#22c55e',
+                    marginRight: 6,
+                  }}
+                />
                 {queueInfo?.userInfo?.estado === 'EN_ESPERA'
                   ? 'En Espera'
                   : queueInfo?.userInfo?.estado || 'Pendiente'}
@@ -229,7 +261,10 @@ export default function TicketConfirmationPage() {
           </div>
 
           <div style={styles.instructions}>
-            <h3 style={styles.instructionsTitle}>📋 Instrucciones</h3>
+            <h3 style={styles.instructionsTitle}>
+              <ClipboardList size={18} style={{ verticalAlign: '-3px', marginRight: 6 }} />
+              Instrucciones
+            </h3>
             <ol style={styles.instructionsList}>
               <li>Espera a que sea llamado tu turno (número {ticketId})</li>
               <li>Cuando sea tu turno, se mostrará en la pantalla de espera</li>
@@ -239,11 +274,11 @@ export default function TicketConfirmationPage() {
           </div>
 
           <div style={styles.buttonGroup}>
-            <button onClick={handlePrint} style={styles.button}>
-              🖨️ Imprimir
+            <button onClick={handlePrint} style={{ ...styles.button, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <Printer size={16} /> Imprimir
             </button>
-            <button onClick={handleDownloadQR} style={styles.button}>
-              ⬇️ Descargar QR
+            <button onClick={handleDownloadQR} style={{ ...styles.button, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <Download size={16} /> Descargar QR
             </button>
           </div>
 
@@ -256,8 +291,17 @@ export default function TicketConfirmationPage() {
           <p style={styles.footerText}>Número de confirmación: {ticketId}</p>
           <p style={styles.footerText}>Hora de registro: {new Date().toLocaleString('es-ES')}</p>
           <p style={styles.footerText}>
-            {loading && '⏳ Actualizando información...'}
-            {error && `⚠️ ${error}`}
+            {loading && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                Actualizando información...
+              </span>
+            )}
+            {error && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <AlertTriangle size={14} /> {error}
+              </span>
+            )}
           </p>
           <p style={{ ...styles.footerText, marginTop: '15px', fontSize: '12px' }}>
             SmartLining © 2026 - Gestión de Colas Virtuales

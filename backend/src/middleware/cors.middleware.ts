@@ -1,18 +1,21 @@
 import { Request, Response, NextFunction } from 'express';
 
+const isAllowedOrigin = (origin: string | undefined, allowed: string[]): boolean =>
+  !!origin && (allowed.includes('*') || allowed.includes(origin));
+
 export const corsMiddleware = (req: Request, res: Response, next: NextFunction): void => {
-  // Priority:
-  // 1. If CORS_ORIGIN env var is '*', allow all origins (no credentials header).
-  // 2. If CORS_ORIGIN is a specific origin, use it.
-  // 3. Otherwise, echo request Origin (useful for localhost/IP during dev).
   const envOrigin = process.env.CORS_ORIGIN;
+  const allowedOrigins = envOrigin && envOrigin !== '*'
+    ? envOrigin.split(',').map((o) => o.trim()).filter(Boolean)
+    : [];
+
   let originToSet = '*';
 
-  if (envOrigin && envOrigin !== '*') {
-    originToSet = envOrigin;
+  if (allowedOrigins.length > 0) {
+    originToSet = isAllowedOrigin(req.headers.origin, allowedOrigins)
+      ? (req.headers.origin as string)
+      : allowedOrigins[0];
   } else if (envOrigin === '*') {
-    // If wildcard is requested but credentials are enabled, echo the request Origin
-    // so cookies/credentials can be used by the browser.
     if (process.env.CORS_CREDENTIALS === 'true' && req.headers.origin) {
       originToSet = req.headers.origin as string;
     } else {
@@ -28,13 +31,11 @@ export const corsMiddleware = (req: Request, res: Response, next: NextFunction):
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie');
 
-  // Only set credentials when origin is not '*' and when CORS_CREDENTIALS is enabled
   const allowCredentials = process.env.CORS_CREDENTIALS === 'true' && originToSet !== '*';
   if (allowCredentials) {
     res.header('Access-Control-Allow-Credentials', 'true');
   }
 
-  // Vary on Origin to prevent caching intermediaries serving responses with wrong CORS headers
   res.header('Vary', 'Origin');
 
   res.header('Access-Control-Max-Age', '86400');

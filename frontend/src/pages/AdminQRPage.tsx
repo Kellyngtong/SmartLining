@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
+import { Download, Printer, Copy, ClipboardList } from 'lucide-react';
 import { apiClient } from '../services/api';
 import { useAuthStore } from '../store/auth.store';
 import '../styles/global.css';
@@ -11,6 +12,7 @@ interface Queue {
   nombre: string;
   descripcion: string;
   activa: boolean;
+  tipo?: string;
 }
 /**
  * AdminQRPage component - allows administrators to generate QR codes for their queues
@@ -131,20 +133,22 @@ export default function AdminQRPage() {
     }
   };
 
-  const getQueueUrl = (queueId: number) => {
+  const isRestaurant = (queue: Queue) => queue.tipo === 'RESTAURANTE';
+
+  const getJoinPath = (queue: Queue) =>
+    isRestaurant(queue) ? `/restaurante?cola=${queue.id_cola}` : `/join-queue/${queue.id_cola}`;
+
+  const getQueueUrl = (queue: Queue) => {
     const baseUrl = (import.meta.env.VITE_APP_URL as string) || window.location.origin;
-    return `${baseUrl}/join-queue/${queueId}`;
+    return `${baseUrl}${getJoinPath(queue)}`;
   };
 
   const getQueuePayload = (queue: Queue) => {
     const baseUrl = (import.meta.env.VITE_APP_URL as string) || window.location.origin;
-    const url = `${baseUrl}/join-queue/${queue.id_cola}`;
-    const clientName = `cliente-${Date.now()}`;
-    // ticketid unknown at generation time; set to null
+    const url = `${baseUrl}${getJoinPath(queue)}`;
     return {
-      ticketid: null,
       queueid: queue.id_cola,
-      clienteName: clientName,
+      tipo: queue.tipo ?? 'GENERICA',
       url,
     };
   };
@@ -273,7 +277,19 @@ export default function AdminQRPage() {
               >
                 <h3 style={styles.queueName}>{queue.nombre}</h3>
                 <p style={styles.queueDesc}>{queue.descripcion}</p>
-                <p style={styles.queueStatus}>{queue.activa ? '🟢 Activa' : '⛔ Inactiva'}</p>
+                <p style={{ ...styles.queueStatus, color: queue.activa ? '#28a745' : '#dc2626' }}>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      backgroundColor: queue.activa ? '#28a745' : '#dc2626',
+                      marginRight: 6,
+                    }}
+                  />
+                  {queue.activa ? 'Activa' : 'Inactiva'}
+                </p>
               </div>
             ))}
           </div>
@@ -290,7 +306,7 @@ export default function AdminQRPage() {
                   const payload =
                     format === 'json'
                       ? JSON.stringify(getQueuePayload(selectedQueue))
-                      : getQueueUrl(selectedQueue.id_cola);
+                      : getQueueUrl(selectedQueue);
                   return (
                     <QRCodeSVG
                       value={payload}
@@ -309,7 +325,7 @@ export default function AdminQRPage() {
                 <p style={styles.qrUrl}>
                   {format === 'json'
                     ? JSON.stringify(getQueuePayload(selectedQueue))
-                    : getQueueUrl(selectedQueue.id_cola)}
+                    : getQueueUrl(selectedQueue)}
                 </p>
 
                 <div style={styles.controls}>
@@ -340,38 +356,65 @@ export default function AdminQRPage() {
                 </div>
 
                 <div style={styles.buttonGroup}>
-                  <Button onClick={() => handleDownloadQR(selectedQueue)}>⬇️ Descargar QR</Button>
-                  <Button onClick={() => handlePrintQR()}>🖨️ Imprimir</Button>
+                  <Button onClick={() => handleDownloadQR(selectedQueue)}>
+                    <Download size={16} style={{ marginRight: 6 }} /> Descargar QR
+                  </Button>
+                  <Button onClick={() => handlePrintQR()}>
+                    <Printer size={16} style={{ marginRight: 6 }} /> Imprimir
+                  </Button>
                   <Button
                     onClick={() => {
                       const payload =
                         format === 'json'
                           ? JSON.stringify(getQueuePayload(selectedQueue))
-                          : getQueueUrl(selectedQueue.id_cola);
+                          : getQueueUrl(selectedQueue);
                       navigator.clipboard.writeText(payload);
                       alert('Contenido copiado al portapapeles');
                     }}
                   >
-                    📋 Copiar contenido
+                    <Copy size={16} style={{ marginRight: 6 }} /> Copiar contenido
                   </Button>
                 </div>
 
                 <div style={styles.instructions}>
-                  <h4>📋 Instrucciones</h4>
+                  <h4>
+                    <ClipboardList size={18} style={{ verticalAlign: '-3px', marginRight: 6 }} />
+                    Instrucciones
+                  </h4>
                   <ol>
                     <li>Descarga o imprime el código QR</li>
                     <li>Coloca el QR en un lugar visible en tu establecimiento</li>
                     <li>Los clientes escanean el QR con sus teléfonos</li>
-                    <li>
-                      Si el QR es de tipo <strong>URL</strong>, el escáner abrirá la página de
-                      registro en el frontend y se generará automáticamente el cliente y el turno.
-                    </li>
-                    <li>
-                      Si el QR es de tipo <strong>JSON</strong>, contiene un objeto con{' '}
-                      <code>queueid</code>, <code>clienteName</code> y una propiedad{' '}
-                      <code>url</code> que apunta a la página de registro; algunos escáneres
-                      mostrarán el JSON, otros permitirán abrir la URL incluida.
-                    </li>
+                    {selectedQueue.tipo === 'RESTAURANTE' ? (
+                      <>
+                        <li>
+                          Si el QR es de tipo <strong>URL</strong>, el escáner abrirá la página
+                          del restaurante, donde el cliente podrá{' '}
+                          <strong>entrar en la cola actual</strong> o{' '}
+                          <strong>reservar mesa</strong> para otro día.
+                        </li>
+                        <li>
+                          Si el QR es de tipo <strong>JSON</strong>, contiene un objeto con{' '}
+                          <code>queueid</code>, <code>tipo</code> y una propiedad{' '}
+                          <code>url</code> que apunta a la página del restaurante; algunos
+                          escáneres mostrarán el JSON, otros permitirán abrir la URL incluida.
+                        </li>
+                      </>
+                    ) : (
+                      <>
+                        <li>
+                          Si el QR es de tipo <strong>URL</strong>, el escáner abrirá la página
+                          de registro en el frontend y se generará automáticamente el cliente y
+                          el turno.
+                        </li>
+                        <li>
+                          Si el QR es de tipo <strong>JSON</strong>, contiene un objeto con{' '}
+                          <code>queueid</code>, <code>tipo</code> y una propiedad{' '}
+                          <code>url</code> que apunta a la página de registro; algunos escáneres
+                          mostrarán el JSON, otros permitirán abrir la URL incluida.
+                        </li>
+                      </>
+                    )}
                     <li>
                       Tras registrarse verán su número de turno y tiempo estimado y el sistema
                       comenzará a rastrear su avance.

@@ -12,20 +12,55 @@ datasource db {
 }
 
 // ========================
+// LICENCIA DE USUARIO
+// ========================
+// Determina el modo de la aplicación al que accede el usuario tras login.
+// RESTAURANTE -> vista de restaurante (mesas, cola de comensales, QR)
+// GENERAL     -> vista general de SmartLining (colas genéricas, dashboard)
+enum Licencia {
+  RESTAURANTE
+  GENERAL
+
+  @@map("licencia")
+}
+
+// ========================
+// EMPRESAS / TENANTS
+// ========================
+// Representa a cada organización (tenant). Cada usuario y cada cola
+// pertenecen a una empresa, lo que aísla los datos entre tenants.
+model Empresa {
+  id_empresa     Int      @id @default(autoincrement())
+  nombre         String   @db.VarChar(150)
+  licencia       Licencia
+  activa         Boolean  @default(true)
+  fecha_creacion DateTime @default(now())
+
+  // Relaciones
+  usuarios Usuario[]
+  colas    Cola[]
+
+  @@map("empresa")
+}
+
+// ========================
 // USUARIOS DEL SISTEMA
 // ========================
 // Almacena los usuarios autenticados del sistema (administradores y empleados).
 model Usuario {
-  id_usuario    Int       @id @default(autoincrement())
-  nombre        String    @db.VarChar(100)
-  email         String    @unique @db.VarChar(150)
-  password_hash String    @db.VarChar(255)
-  rol           UserRole
-  activo        Boolean   @default(true)
-  fecha_creacion DateTime  @default(now())
+  id_usuario     Int      @id @default(autoincrement())
+  nombre         String   @db.VarChar(100)
+  email          String   @unique @db.VarChar(150)
+  password_hash  String   @db.VarChar(255)
+  rol            UserRole
+  licencia       Licencia @default(GENERAL)
+  id_empresa     Int
+  activo         Boolean  @default(true)
+  fecha_creacion DateTime @default(now())
 
   // Relaciones
-  atenciones    Atencion[]
+  empresa    Empresa     @relation(fields: [id_empresa], references: [id_empresa])
+  atenciones Atencion[]
 
   @@map("usuario")
 }
@@ -41,16 +76,28 @@ enum UserRole {
 // CLIENTES
 // ========================
 // Representa a los clientes finales que solicitan un turno mediante código QR.
+// Centraliza la información del cliente (reservas, visitas, preferencias).
 model Cliente {
-  id_cliente    Int       @id @default(autoincrement())
-  nombre        String    @db.VarChar(100)
-  client_token  String?
-  fecha_creacion DateTime  @default(now())
-  origen        String    @default("QR") @db.VarChar(50)
+  id_cliente     Int      @id @default(autoincrement())
+  nombre         String   @db.VarChar(100)
+  client_token   String?
+  telefono       String?  @db.VarChar(30) // teléfono para reservas/notificaciones
+  email          String?  @db.VarChar(150)
+  notas          String?  @db.Text
+  preferencias   String?  @db.Text // preferencias en texto libre (zona, mesa, alergias...)
+  visitas        Int      @default(0) // total de visitas confirmadas
+  cancelaciones  Int      @default(0)
+  no_shows       Int      @default(0)
+  fecha_creacion DateTime @default(now())
+  origen         String   @default("QR") @db.VarChar(50)
+  id_empresa     Int? // scoping opcional: null = cliente legacy global
 
   // Relaciones
-  turnos        Turno[]
+  turnos   Turno[]
+  reservas Reserva[]
+  waitlist WaitlistEntry[]
 
+  @@index([id_empresa])
   @@map("cliente")
 }
 
@@ -58,17 +105,30 @@ model Cliente {
 // COLAS
 // ========================
 // Define las colas de atención configurables por el administrador.
+// Una cola de tipo RESTAURANTE representa un restaurante en el sistema
+// de gestión de sala (mesas, zonas, reservas, waitlist).
 model Cola {
-  id_cola       Int       @id @default(autoincrement())
-  nombre        String    @db.VarChar(100)
-  descripcion   String?   @db.Text
-  activa        Boolean   @default(true)
-  fecha_creacion DateTime  @default(now())
+  id_cola        Int      @id @default(autoincrement())
+  id_empresa     Int
+  nombre         String   @db.VarChar(100)
+  descripcion    String?  @db.Text
+  tipo           String   @default("GENERICA") @db.VarChar(30) // GENERICA | RESTAURANTE
+  activa         Boolean  @default(true)
+  fecha_creacion DateTime @default(now())
+  // Duración estimada de una comida (min) usada por el motor de disponibilidad
+  duracion_estimada_comida_min Int @default(90)
 
   // Relaciones
-  horarios      HorarioCola[]
-  turnos        Turno[]
-  eventos       ColaEvento[]
+  empresa     Empresa           @relation(fields: [id_empresa], references: [id_empresa])
+  horarios    HorarioCola[]
+  turnos      Turno[]
+  eventos     ColaEvento[]
+  mesas       Mesa[]
+  mesaGrupos  MesaGrupo[]
+  zonas       Zona[]
+  reservas    Reserva[]
+  waitlist    WaitlistEntry[]
+  asignaciones TableAssignment[]
 
   @@map("cola")
 }
@@ -78,14 +138,14 @@ model Cola {
 // ========================
 // Define las franjas horarias en las que una cola está operativa.
 model HorarioCola {
-  id_horario    Int       @id @default(autoincrement())
-  id_cola       Int
-  dia_semana    DiaSemana
-  hora_inicio   DateTime  @db.Time()
-  hora_fin      DateTime  @db.Time()
+  id_horario  Int       @id @default(autoincrement())
+  id_cola     Int
+  dia_semana  DiaSemana
+  hora_inicio DateTime  @db.Time()
+  hora_fin    DateTime  @db.Time()
 
   // Relaciones
-  cola          Cola      @relation(fields: [id_cola], references: [id_cola], onDelete: Cascade)
+  cola Cola @relation(fields: [id_cola], references: [id_cola], onDelete: Cascade)
 
   @@map("horario_cola")
 }
@@ -108,23 +168,336 @@ enum DiaSemana {
 // Representa cada solicitud de atención realizada por un cliente.
 // Registra los estados del turno y los hitos temporales.
 model Turno {
-  id_turno                    Int       @id @default(autoincrement())
-  id_cola                     Int
-  id_cliente                  Int
-  numero_turno                Int
-  estado                      EstadoTurno @default(EN_ESPERA)
-  fecha_hora_creacion         DateTime  @default(now())
-  fecha_hora_llamada          DateTime?
-  fecha_hora_inicio_atencion  DateTime?
-  fecha_hora_fin_atencion     DateTime?
+  id_turno                   Int         @id @default(autoincrement())
+  id_cola                    Int
+  id_cliente                 Int
+  numero_turno               Int
+  estado                     EstadoTurno @default(EN_ESPERA)
+  num_comensales             Int?
+  categoria                  String?     @db.VarChar(30) // null | GRAN_TAMANO
+  peticion_especial          String?     @db.Text // peticiones especiales solicitadas por el cliente
+  mesa_id                    Int?        @unique
+  fecha_hora_creacion        DateTime    @default(now())
+  fecha_hora_llamada         DateTime?
+  fecha_hora_inicio_atencion DateTime?
+  fecha_hora_fin_atencion    DateTime?
 
   // Relaciones
-  cola                        Cola      @relation(fields: [id_cola], references: [id_cola])
-  cliente                     Cliente   @relation(fields: [id_cliente], references: [id_cliente])
-  atencion                    Atencion?
-  valoracion                  Valoracion?
+  cola       Cola        @relation(fields: [id_cola], references: [id_cola])
+  cliente    Cliente     @relation(fields: [id_cliente], references: [id_cliente])
+  atencion   Atencion?
+  valoracion Valoracion?
+  mesa       Mesa?       @relation(fields: [mesa_id], references: [id_mesa])
 
+  @@index([id_cola, estado])
   @@map("turno")
+}
+
+// ========================
+// MESAS (Modo Restaurante)
+// ========================
+// Representa una mesa física de un restaurante. Pertenece a una cola de tipo
+// RESTAURANTE y opcionalmente a una zona. Contiene campos de capacidad,
+// estado, posición en el plano y forma para el futuro editor visual.
+model Mesa {
+  id_mesa             Int        @id @default(autoincrement())
+  numero              Int
+  capacidad           Int // capacidad base
+  capacidad_min       Int        @default(0) // aforo mínimo configurado
+  capacidad_extra     Int        @default(0) // sillas extras añadidas durante el servicio
+  estado              MesaEstado @default(LIBRE) // LIBRE | OCUPADA | RESERVADA | AGRUPADA | BLOQUEADA | LIMPIEZA | FUERA_SERVICIO
+  id_cola             Int
+  id_zona             Int? // zona a la que pertenece la mesa
+  x                   Float? // posición en el plano
+  y                   Float?
+  width               Float? // dimensión visual (px)
+  height              Float?
+  rotation            Float    @default(0)
+  shape               FormaMesa @default(RECTANGULAR) // REDONDA | CUADRADA | RECTANGULAR
+  notas               String?  @db.Text
+  activa              Boolean  @default(true) // false = FUERA_SERVICIO / retirada temporalmente
+  fecha_creacion      DateTime @default(now())
+  fecha_actualizacion DateTime @updatedAt
+
+  // Relaciones
+  cola        Cola                  @relation(fields: [id_cola], references: [id_cola])
+  zona        Zona?                 @relation(fields: [id_zona], references: [id_zona])
+  turno       Turno?                @relation
+  grupos      MesaGrupoMesa[]
+  historial   MesaConfigHistorial[] // trazabilidad de cambios de configuración
+  asignaciones TableAssignment[]
+
+  @@unique([id_cola, numero])
+  @@index([id_cola, estado])
+  @@index([id_zona])
+  @@map("mesa")
+}
+
+// ========================
+// GRUPOS DE MESAS (Combinaciones temporales)
+// ========================
+// Representa una combinación temporal de mesas juntadas físicamente para
+// atender a un grupo grande. No es una nueva mesa física: las mesas siguen
+// siendo entidades independientes vinculadas temporalmente.
+model MesaGrupo {
+  id_grupo        Int      @id @default(autoincrement())
+  id_cola         Int
+  numero          Int // identificador visible del grupo (nº de la mesa principal)
+  capacidad_total Int
+  fecha_creacion  DateTime @default(now())
+  fecha_inicio    DateTime? // inicio del periodo combinado
+  fecha_fin       DateTime? // fin opcional: si está set se considera disuelto programáticamente
+  activa          Boolean  @default(true)
+
+  // Relaciones
+  cola  Cola            @relation(fields: [id_cola], references: [id_cola])
+  mesas MesaGrupoMesa[]
+  asignaciones TableAssignment[]
+
+  @@index([id_cola, activa])
+  @@map("mesa_grupo")
+}
+
+// Tabla de unión N:M entre MesaGrupo y Mesa
+model MesaGrupoMesa {
+  id_grupo Int
+  id_mesa  Int
+
+  grupo MesaGrupo @relation(fields: [id_grupo], references: [id_grupo])
+  mesa  Mesa      @relation(fields: [id_mesa], references: [id_mesa])
+
+  @@id([id_grupo, id_mesa])
+  @@map("mesa_grupo_mesa")
+}
+
+// ========================
+// ESTADOS DE MESA
+// ========================
+enum MesaEstado {
+  LIBRE
+  OCUPADA
+  RESERVADA
+  AGRUPADA
+  BLOQUEADA
+  LIMPIEZA
+  FUERA_SERVICIO
+
+  @@map("mesa_estado")
+}
+
+// ========================
+// FORMA DE MESA (plano)
+// ========================
+enum FormaMesa {
+  REDONDA
+  CUADRADA
+  RECTANGULAR
+
+  @@map("forma_mesa")
+}
+
+// ========================
+// ZONAS DEL RESTAURANTE
+// ========================
+// Divide el restaurante en zonas configurables (Sala, Terraza, Barra, VIP...).
+// Cada mesa pertenece a una zona; reservas y waitlist pueden pedir preferencia.
+model Zona {
+  id_zona  Int      @id @default(autoincrement())
+  id_cola  Int
+  nombre   String   @db.VarChar(100)
+  tipo     TipoZona @default(SALA)
+  orden    Int      @default(0)
+  activa   Boolean  @default(true)
+  fecha_creacion DateTime @default(now())
+
+  // Relaciones
+  cola       Cola                 @relation(fields: [id_cola], references: [id_cola])
+  mesas      Mesa[]
+  configHistorial MesaConfigHistorial[]
+
+  @@unique([id_cola, nombre])
+  @@map("zona")
+}
+
+enum TipoZona {
+  SALA
+  TERRAZA
+  BARRA
+  VIP
+  EXTERIOR
+  PRIVADO
+
+  @@map("tipo_zona")
+}
+
+// ========================
+// HISTORIAL DE CONFIGURACIÓN DE MESA
+// ========================
+// Trazabilidad no destructiva de los cambios de capacidad/sillas/zona.
+// Permite responder "¿qué capacidad tenía esta mesa a las 19:00?".
+model MesaConfigHistorial {
+  id_historial Int      @id @default(autoincrement())
+  mesa_id      Int
+  capacidad    Int
+  sillas       Int      @default(0) // capacidad_extra en ese momento
+  zona_id      Int?
+  fecha_inicio DateTime @default(now())
+  fecha_fin    DateTime?
+
+  // Relaciones
+  mesa Mesa  @relation(fields: [mesa_id], references: [id_mesa])
+  zona Zona? @relation(fields: [zona_id], references: [id_zona])
+
+  @@index([mesa_id, fecha_inicio])
+  @@map("mesa_config_historial")
+}
+
+// ========================
+// RESERVAS
+// ========================
+// Reserva de una fecha/hora futura. Independiente de la mesa: la asignación
+// de mesa(s) se realiza a posteriori mediante TableAssignment.
+model Reserva {
+  id_reserva       Int           @id @default(autoincrement())
+  id_cola          Int
+  id_cliente       Int? // opcional: se puede reservar solo con nombre/teléfono
+  cliente_nombre   String        @db.VarChar(150)
+  cliente_telefono String?       @db.VarChar(30)
+  cliente_email    String?       @db.VarChar(150)
+  fecha            DateTime      @db.Date()
+  hora_inicio      DateTime      @db.Time()
+  hora_fin         DateTime?     @db.Time()
+  num_comensales   Int
+  estado           EstadoReserva @default(PENDIENTE)
+  notas            String?       @db.Text
+  preferencia_zona Int?          @db.Int // opcional: id_zona preferida
+  preferencia_mesa Int?          @db.Int // opcional: id_mesa preferida
+  origen           OrigenReserva @default(TELEFONO)
+  created_at       DateTime      @default(now())
+  updated_at       DateTime      @updatedAt
+
+  // Relaciones
+  cola    Cola  @relation(fields: [id_cola], references: [id_cola])
+  cliente Cliente? @relation(fields: [id_cliente], references: [id_cliente])
+  asignaciones TableAssignment[]
+
+  @@index([id_cola, fecha])
+  @@index([fecha, hora_inicio])
+  @@map("reserva")
+}
+
+enum EstadoReserva {
+  PENDIENTE
+  CONFIRMADA
+  CHECKED_IN
+  SENTADA
+  COMPLETADA
+  CANCELADA
+  NO_SHOW
+
+  @@map("estado_reserva")
+}
+
+enum OrigenReserva {
+  TELEFONO
+  WEB
+  APP
+  WALK_IN
+  WHATSAPP
+  OTRO
+
+  @@map("origen_reserva")
+}
+
+// ========================
+// WAITLIST (Cola de espera del restaurante)
+// ========================
+// Clientes que llegan sin reserva y esperan mesa. Sustituye al Turno en el
+// módulo restaurante; turno_legacy_id apunta al Turno antiguo durante la
+// migración para conservar trazabilidad.
+model WaitlistEntry {
+  id_waitlist       Int            @id @default(autoincrement())
+  id_cola           Int
+  id_cliente        Int?
+  cliente_nombre    String         @db.VarChar(150)
+  cliente_telefono  String?        @db.VarChar(30)
+  num_comensales    Int
+  hora_llegada      DateTime       @default(now())
+  estado            EstadoWaitlist @default(ESPERANDO)
+  tiempo_estimado_min Int? // ETA estimada en minutos
+  prioridad         Int            @default(0) // mayor = atención preferente
+  preferencia_zona  Int?           @db.Int
+  preferencia_mesa  Int?           @db.Int
+  notas             String?        @db.Text
+  turno_legacy_id   Int?           @unique // FK lógica al Turno antiguo
+
+  // Relaciones
+  cola    Cola  @relation(fields: [id_cola], references: [id_cola])
+  cliente Cliente? @relation(fields: [id_cliente], references: [id_cliente])
+  asignaciones TableAssignment[]
+
+  @@index([id_cola, estado])
+  @@index([hora_llegada])
+  @@map("waitlist_entry")
+}
+
+enum EstadoWaitlist {
+  ESPERANDO
+  NOTIFICADO
+  ASIGNADO
+  SENTADO
+  CANCELADO
+  NO_SHOW
+
+  @@map("estado_waitlist")
+}
+
+// ========================
+// ASIGNACIONES DE MESA
+// ========================
+// Nexo único entre un origen (Reserva o Waitlist) y una mesa física o una
+// combinación temporal de mesas. Separa claramente "mesa física" de
+// "asignación" (regla nº12 del diseño).
+model TableAssignment {
+  id_asignacion    Int      @id @default(autoincrement())
+  id_cola          Int
+  tipo_origen      TipoOrigenAsignacion
+  id_reserva       Int?
+  id_waitlist      Int?
+  mesa_id          Int // mesa principal / representante
+  grupo_id         Int? // combinación temporal opcional
+  num_comensales   Int
+  hora_inicio      DateTime @default(now())
+  hora_fin_prevista DateTime? // fin estimado = inicio + duración comida
+  estado           EstadoAsignacion @default(ACTIVA)
+
+  // Relaciones
+  cola      Cola      @relation(fields: [id_cola], references: [id_cola])
+  reserva   Reserva?  @relation(fields: [id_reserva], references: [id_reserva])
+  waitlist  WaitlistEntry? @relation(fields: [id_waitlist], references: [id_waitlist])
+  mesa      Mesa      @relation(fields: [mesa_id], references: [id_mesa])
+  grupo     MesaGrupo? @relation(fields: [grupo_id], references: [id_grupo])
+
+  @@index([id_cola, estado])
+  @@index([mesa_id])
+  @@index([grupo_id])
+  @@map("table_assignment")
+}
+
+enum TipoOrigenAsignacion {
+  RESERVA
+  WAITLIST
+
+  @@map("tipo_origen_asignacion")
+}
+
+enum EstadoAsignacion {
+  PENDIENTE
+  ACTIVA
+  COMPLETADA
+  CANCELADA
+
+  @@map("estado_asignacion")
 }
 
 enum EstadoTurno {
@@ -143,15 +516,15 @@ enum EstadoTurno {
 // Permite asociar turnos a empleados, calcular la duración de la atención
 // y analizar el rendimiento operativo del personal.
 model Atencion {
-  id_atencion       Int       @id @default(autoincrement())
-  id_turno          Int       @unique
+  id_atencion       Int               @id @default(autoincrement())
+  id_turno          Int               @unique
   id_empleado       Int
-  duracion_atencion Int?      @db.Int // Duración en segundos
+  duracion_atencion Int?              @db.Int // Duración en segundos
   resultado         ResultadoAtencion
 
   // Relaciones
-  turno             Turno     @relation(fields: [id_turno], references: [id_turno])
-  empleado          Usuario   @relation(fields: [id_empleado], references: [id_usuario])
+  turno    Turno   @relation(fields: [id_turno], references: [id_turno])
+  empleado Usuario @relation(fields: [id_empleado], references: [id_usuario])
 
   @@map("atencion")
 }
@@ -170,14 +543,14 @@ enum ResultadoAtencion {
 // la atención. Permite medir la satisfacción del cliente y relacionarla
 // con tiempos de espera, atención y contexto operativo.
 model Valoracion {
-  id_valoracion      Int       @id @default(autoincrement())
-  id_turno           Int       @unique
-  puntuacion         Int       // CHECK (puntuacion BETWEEN 1 AND 5)
-  comentario         String?   @db.Text
-  fecha_valoracion   DateTime  @default(now())
+  id_valoracion    Int      @id @default(autoincrement())
+  id_turno         Int      @unique
+  puntuacion       Int // CHECK (puntuacion BETWEEN 1 AND 5)
+  comentario       String?  @db.Text
+  fecha_valoracion DateTime @default(now())
 
   // Relaciones
-  turno              Turno     @relation(fields: [id_turno], references: [id_turno])
+  turno Turno @relation(fields: [id_turno], references: [id_turno])
 
   @@map("valoracion")
 }
@@ -189,15 +562,15 @@ model Valoracion {
 // al funcionamiento de las colas.
 // Permite contextualizar las métricas y comparar situaciones especiales con días normales.
 model Evento {
-  id_evento      Int       @id @default(autoincrement())
-  tipo           TipoEvento
-  nombre         String    @db.VarChar(150)
-  descripcion    String?   @db.Text
-  fecha_inicio   DateTime  @db.Date()
-  fecha_fin      DateTime  @db.Date()
+  id_evento    Int        @id @default(autoincrement())
+  tipo         TipoEvento
+  nombre       String     @db.VarChar(150)
+  descripcion  String?    @db.Text
+  fecha_inicio DateTime   @db.Date()
+  fecha_fin    DateTime   @db.Date()
 
   // Relaciones
-  colas          ColaEvento[]
+  colas ColaEvento[]
 
   @@map("evento")
 }
@@ -221,8 +594,8 @@ model ColaEvento {
   id_evento Int
 
   // Relaciones
-  cola      Cola      @relation(fields: [id_cola], references: [id_cola], onDelete: Cascade)
-  evento    Evento    @relation(fields: [id_evento], references: [id_evento], onDelete: Cascade)
+  cola   Cola   @relation(fields: [id_cola], references: [id_cola], onDelete: Cascade)
+  evento Evento @relation(fields: [id_evento], references: [id_evento], onDelete: Cascade)
 
   @@id([id_cola, id_evento])
   @@map("cola_evento")

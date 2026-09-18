@@ -1,0 +1,732 @@
+/* ================================
+   Modo Restaurante - Estilos
+   ================================ */
+
+.restaurant-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 20px;
+}
+
+.restaurant-hero {
+  background: linear-gradient(135deg, var(--sl-black) 0%, #2a2a2a 100%);
+  color: #fff;
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.restaurant-hero::after {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -10%;
+  width: 260px;
+  height: 260px;
+  background: radial-gradient(circle, rgba(255, 215, 0, 0.25) 0%, transparent 70%);
+  border-radius: 50%;
+}
+
+.restaurant-hero h1 {
+  color: var(--sl-yellow);
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+.restaurant-hero p {
+  color: rgba(255, 255, 255, 0.85);
+  max-width: 600px;
+}
+
+.restaurant-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 18px;
+  text-align: center;
+  box-shadow: var(--shadow-soft);
+}
+
+.stat-card .stat-value {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--sl-black);
+  line-height: 1;
+}
+
+.stat-card .stat-value.green {
+  color: #22c55e;
+}
+.stat-card .stat-value.red {
+  color: #ef4444;
+}
+.stat-card .stat-value.yellow {
+  color: var(--sl-amber);
+}
+
+.stat-card .stat-label {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  margin-top: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ================================
+   Mesa Card (grid)
+   ================================ */
+.mesa-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+}
+
+.mesa-card {
+  border-radius: 12px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.mesa-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.1);
+}
+
+.mesa-card.ocupada {
+  border-left: 5px solid #ef4444;
+  background: #fefefe;
+}
+.mesa-card.libre {
+  border-left: 5px solid #22c55e;
+}
+.mesa-card.reservada {
+  border-left: 5px solid #f59e0b;
+}
+.mesa-card.agrupada {
+  border-left: 5px solid #8b5cf6;
+  background: #faf5ff;
+}
+
+.silla-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 6px;
+  padding: 1px 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.grupo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #ede9fe;
+  color: #6d28d9;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-top: 6px;
+}
+.btn-juntar-card {
+  background: #ede9fe;
+  color: #5b21b6;
+  border: 1px solid #c4b5fd;
+  border-radius: 8px;
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.btn-juntar-card:hover {
+  background: #ddd6fe;
+}
+.btn-eliminar-card {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.btn-eliminar-card:hover {
+  background: #fee2e2;
+}
+.silla-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--color-text);
+  cursor: pointer;
+  font-weight: 700;
+}
+.silla-btn:hover {
+  background: #f0f0f0;
+}
+
+.mesa-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.mesa-card .mesa-numero {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.mesa-capacity {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.mesa-status {
+  text-align: center;
+  margin-top: 8px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mesa-status.libre {
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803d;
+}
+.mesa-status.ocupada {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+}
+.mesa-status.reservada {
+  background: rgba(245, 158, 11, 0.15);
+  color: #b45309;
+}
+
+/* ================================
+   Mesa List (lista)
+   ================================ */
+.mesa-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mesa-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-left: 5px solid #ddd;
+  border-radius: 10px;
+  padding: 14px 16px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mesa-list-item:hover {
+  transform: translateX(3px);
+  box-shadow: var(--shadow-soft);
+}
+
+.mesa-list-item.libre {
+  border-left-color: #22c55e;
+}
+.mesa-list-item.ocupada {
+  border-left-color: #ef4444;
+}
+.mesa-list-item.reservada {
+  border-left-color: #f59e0b;
+}
+
+.mesa-list-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.mesa-list-numero {
+  font-size: 1.1rem;
+  font-weight: 700;
+  min-width: 40px;
+}
+
+/* ================================
+   Vista Toggle
+   ================================ */
+.vista-toggle {
+  display: inline-flex;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 20px;
+}
+
+.vista-toggle button {
+  border: none;
+  background: transparent;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vista-toggle button.active {
+  background: var(--sl-black);
+  color: var(--sl-yellow);
+}
+
+/* ================================
+   Cola de Espera (cliente)
+   ================================ */
+.cola-espera-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: var(--shadow-soft);
+  margin-bottom: 16px;
+}
+
+.cola-espera-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cola-espera-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fafafa;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+
+.cola-espera-item .turno-posicion {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--sl-amber);
+  min-width: 50px;
+}
+
+.cola-espera-item .turno-comensales {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-secondary);
+}
+
+.cola-espera-item .turno-eta {
+  font-weight: 600;
+  color: var(--sl-black);
+}
+
+.cola-espera-item .turno-eta.negativa {
+  color: #b91c1c;
+}
+
+/* ================================
+   Gran Grupo Badge
+   ================================ */
+.gran-grupo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #f97316, #ef4444);
+  color: #fff;
+  border-radius: 8px;
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.gran-grupo-alert {
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-left: 5px solid #f97316;
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Tarjeta de mesa: fila inferior con botón liberar */
+.mesa-card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.btn-liberar-card {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.btn-liberar-card:hover {
+  background: #fecaca;
+}
+
+/* Panel de alertas de grupos grandes */
+.alertas-gran-grupo {
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-left: 6px solid #f97316;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 12px rgba(249, 115, 22, 0.15);
+}
+.alertas-gran-grupo-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  color: #c2410c;
+  margin-bottom: 12px;
+}
+.alertas-gran-grupo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.alertas-gran-grupo-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid #fed7aa;
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+.alertas-gran-grupo-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: #9a3412;
+  font-size: 0.9rem;
+}
+.alertas-gran-grupo-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* ================================
+   Tabs de administración de sala
+   ================================ */
+.rest-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 24px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 6px;
+  overflow-x: auto;
+  box-shadow: var(--shadow-soft);
+}
+
+.rest-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: none;
+  background: transparent;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.rest-tab:hover {
+  background: #f5f5f5;
+  color: var(--sl-black);
+}
+
+.rest-tab.active {
+  background: var(--sl-black);
+  color: var(--sl-yellow);
+}
+
+/* ================================
+   Operador Panel
+   ================================ */
+.operator-layout {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .operator-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.panel {
+  background: #fff;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: var(--shadow-soft);
+}
+
+.panel h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* ================================
+   Formulario de Mesa
+   ================================ */
+.mesa-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.mesa-form .full-width {
+  grid-column: 1 / -1;
+}
+
+.mesa-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+.mesa-form input {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.modal-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+}
+
+/* ================================
+   Botones restaurant
+   ================================ */
+.btn-restaurant {
+  background: var(--sl-black);
+  color: var(--sl-yellow);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-restaurant:hover {
+  background: #2a2a2a;
+  transform: translateY(-1px);
+}
+
+.btn-restaurant:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-restaurant.yellow {
+  background: var(--sl-yellow);
+  color: var(--sl-black);
+}
+
+.btn-restaurant.yellow:hover {
+  background: var(--sl-gold);
+}
+
+.btn-danger {
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-weight: 600;
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+}
+
+.btn-ghost-rest {
+  background: transparent;
+  color: var(--sl-black);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-weight: 600;
+}
+
+.btn-ghost-rest:hover {
+  background: #f5f5f5;
+}
+
+/* ================================
+   Cliente - formulario comensales
+   ================================ */
+.comensales-form {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px;
+  max-width: 420px;
+  margin: 0 auto;
+  box-shadow: 0 10px 30px rgba(255, 179, 0, 0.12);
+  text-align: center;
+}
+
+.comensales-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.comensales-stepper button {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 2px solid var(--sl-black);
+  background: transparent;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--sl-black);
+  transition: all 0.2s ease;
+}
+
+.comensales-stepper button:hover {
+  background: var(--sl-yellow);
+  border-color: var(--sl-yellow);
+}
+
+.comensales-stepper .stepper-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  min-width: 80px;
+}
+
+.comensales-hint {
+  font-size: 0.9rem;
+  color: var(--color-text-secondary);
+  margin-top: 12px;
+}
+
+/* Cliente ticket status */
+.ticket-status {
+  background: #fff;
+  border-radius: 16px;
+  padding: 30px;
+  max-width: 480px;
+  margin: 0 auto;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(255, 179, 0, 0.15);
+}
+
+.ticket-status .ticket-num {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--sl-yellow);
+  -webkit-text-stroke: 1px var(--sl-black);
+}
+
+.ticket-status .status-text {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 12px 0;
+}
+
+.ticket-status .status-detail {
+  color: var(--color-text-secondary);
+}
+
+.spinner-rest {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(0, 0, 0, 0.08);
+  border-top: 3px solid var(--sl-yellow);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}

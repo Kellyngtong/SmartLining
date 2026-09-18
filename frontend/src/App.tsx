@@ -14,6 +14,12 @@ import AdminQRPage from './pages/AdminQRPage';
 import OperatorPage from './pages/OperatorPage';
 import RegisterQueuePage from './pages/RegisterQueuePage';
 import PrivacyPolicy from './pages/PrivacyPolicy';
+import RestaurantQueuePage from './pages/RestaurantQueuePage';
+import RestaurantTicketPage from './pages/RestaurantTicketPage';
+import RestaurantOperatorPage from './pages/RestaurantOperatorPage';
+import RestaurantAdminPage from './pages/RestaurantAdminPage';
+import RestaurantHubPage from './pages/RestaurantHubPage';
+import RestaurantReservaPage from './pages/RestaurantReservaPage';
 
 function App() {
   // Call restoreSession once on mount using the store getter to avoid
@@ -25,8 +31,15 @@ function App() {
 
   function Layout() {
     const location = useLocation();
-    const hidePaths = ['/ticket-confirmation', '/join-queue', '/admin/dashboard'];
-    const hideHeader = hidePaths.some(p => location.pathname.startsWith(p));
+    const hidePaths = [
+      '/ticket-confirmation',
+      '/join-queue',
+      '/admin/dashboard',
+      '/restaurante/reserva',
+      '/restaurante/cola',
+      '/restaurante/ticket',
+    ];
+    const hideHeader = hidePaths.some(p => location.pathname.startsWith(p)) || location.pathname === '/restaurante';
     const user = useAuthStore(s => s.user);
 
     return (
@@ -40,8 +53,34 @@ function App() {
           <Route path="/ticket-confirmation" element={<TicketConfirmationPage />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
 
+          {/* Public routes - Modo Restaurante (clientes) */}
+          <Route path="/restaurante" element={<RestaurantHubPage />} />
+          <Route path="/restaurante/reserva/:colaId" element={<RestaurantReservaPage />} />
+          <Route path="/restaurante/cola/:colaId" element={<RestaurantQueuePage />} />
+          <Route path="/restaurante/ticket/:turnoId" element={<RestaurantTicketPage />} />
+
           {/* Public routes - Authentication */}
           <Route path="/login" element={<LoginPage />} />
+
+          {/* Protected routes - Modo Restaurante (operador) */}
+          <Route
+            path="/restaurante/operador/:colaId"
+            element={
+              <ProtectedRoute>
+                <RestaurantOperatorPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Protected routes - Modo Restaurante (admin) */}
+          <Route
+            path="/restaurante/admin/:colaId"
+            element={
+              <ProtectedRoute>
+                <RestaurantAdminPage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Protected routes - Admin/Worker */}
           <Route

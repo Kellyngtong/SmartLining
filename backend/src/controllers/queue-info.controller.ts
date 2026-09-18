@@ -1,9 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../config/prisma';
 import { logger } from '../config/logger';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 /**
  * GET /api/queue-info/:colaId

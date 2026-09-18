@@ -8,74 +8,201 @@ async function main() {
 
   const force = process.env.SEED_FORCE === 'true';
 
-  // Queues to ensure
-  const queuesData = [
+  // ========================================
+  // EMPRESAS / TENANTS
+  // ========================================
+  const empresaGeneral = await prisma.empresa.upsert({
+    where: { id_empresa: 1 },
+    update: {},
+    create: { nombre: 'Empresa General SmartLining', licencia: 'GENERAL' as any },
+  });
+  const empresaRestaurante = await prisma.empresa.upsert({
+    where: { id_empresa: 2 },
+    update: {},
+    create: { nombre: 'Restaurante El Buen Sabor', licencia: 'RESTAURANTE' as any },
+  });
+  console.log(`🏢  Empresas: "${empresaGeneral.nombre}" (${empresaGeneral.licencia}) y "${empresaRestaurante.nombre}" (${empresaRestaurante.licencia})`);
+
+  // ========================================
+  // COLAS GENÉRICAS
+  // ========================================
+  const genericQueuesData = [
     {
       nombre: 'Atención al Cliente',
       descripcion: 'Cola principal para atención general de clientes',
       activa: true,
+      id_empresa: empresaGeneral.id_empresa,
     },
-    { nombre: 'Cajas', descripcion: 'Cola de cajas para pago de servicios', activa: true },
+    { nombre: 'Cajas', descripcion: 'Cola de cajas para pago de servicios', activa: true, id_empresa: empresaGeneral.id_empresa },
     {
       nombre: 'Reclamos',
       descripcion: 'Cola para atención de reclamos y devoluciones',
       activa: true,
+      id_empresa: empresaGeneral.id_empresa,
     },
-    { nombre: 'Carnicería', descripcion: 'Cola para acceder a la carniceria', activa: true },
-    { nombre: 'Soporte', descripcion: 'Soporte técnico y consultas', activa: true },
-    { nombre: 'Devoluciones', descripcion: 'Gestión de devoluciones y cambios', activa: true },
+    { nombre: 'Carnicería', descripcion: 'Cola para acceder a la carniceria', activa: true, id_empresa: empresaGeneral.id_empresa },
+    { nombre: 'Soporte', descripcion: 'Soporte técnico y consultas', activa: true, id_empresa: empresaGeneral.id_empresa },
+    { nombre: 'Devoluciones', descripcion: 'Gestión de devoluciones y cambios', activa: true, id_empresa: empresaGeneral.id_empresa },
   ];
 
-  // Upsert queues to avoid duplicates
   const createdQueues: any[] = [];
-  for (const q of queuesData) {
+  for (const q of genericQueuesData) {
     let cola = await prisma.cola.findFirst({ where: { nombre: q.nombre } });
     if (!cola) cola = await prisma.cola.create({ data: q });
     createdQueues.push(cola);
   }
-  console.log('✅ Colas creadas/aseguradas:', createdQueues.map((c) => c.nombre).join(', '));
+  console.log('✅ Colas genéricas creadas:', createdQueues.map((c) => c.nombre).join(', '));
 
-  // Create or ensure some users (admin + empleados)
-  let empleadoIds: number[] = [];
+  // ========================================
+  // COLA RESTAURANTE
+  // ========================================
+  let restauranteCola = await prisma.cola.findFirst({ where: { nombre: 'Restaurante El Buen Sabor' } });
+  if (!restauranteCola) {
+    restauranteCola = await prisma.cola.create({
+      data: {
+        nombre: 'Restaurante El Buen Sabor',
+        descripcion: 'Cola del restaurante — gestiona mesas y comensales',
+        tipo: 'RESTAURANTE',
+        activa: true,
+        id_empresa: empresaRestaurante.id_empresa,
+      },
+    });
+  } else if (!restauranteCola.id_empresa) {
+    restauranteCola = await prisma.cola.update({
+      where: { id_cola: restauranteCola.id_cola },
+      data: { id_empresa: empresaRestaurante.id_empresa },
+    });
+  }
+  createdQueues.push(restauranteCola);
+  console.log('🍽️  Cola restaurante asegurada:', restauranteCola.nombre, `(ID: ${restauranteCola.id_cola})`);
 
-  try {
-    const adminPassword = await bcrypt.hash('admin123', 10);
-    const empleadoPassword = await bcrypt.hash('empleado123', 10);
+  // ========================================
+  // MESAS DEL RESTAURANTE
+  // ========================================
+  const mesasConfig = [
+    { numero: 1, capacidad: 2 },
+    { numero: 2, capacidad: 2 },
+    { numero: 3, capacidad: 2 },
+    { numero: 4, capacidad: 4 },
+    { numero: 5, capacidad: 4 },
+    { numero: 6, capacidad: 4 },
+    { numero: 7, capacidad: 4 },
+    { numero: 8, capacidad: 6 },
+    { numero: 9, capacidad: 6 },
+    { numero: 10, capacidad: 8 },
+  ];
 
-    await prisma.usuario.upsert({
-      where: { email: 'admin@smartlining.com' },
-      update: {},
-      create: {
+  for (const m of mesasConfig) {
+    const existing = await prisma.mesa.findFirst({
+      where: { id_cola: restauranteCola.id_cola, numero: m.numero },
+    });
+    if (!existing) {
+      await prisma.mesa.create({
+        data: {
+          numero: m.numero,
+          capacidad: m.capacidad,
+          id_cola: restauranteCola.id_cola,
+          estado: 'LIBRE',
+        },
+      });
+    }
+  }
+  const totalMesas = await prisma.mesa.count({ where: { id_cola: restauranteCola.id_cola } });
+  console.log(`🪑  Mesas del restaurante: ${totalMesas} (2×3, 4×4, 2×6, 1×8)`);
+
+  // ========================================
+  // USUARIOS
+  // ========================================
+  const adminPassword = await bcrypt.hash('admin123', 10);
+  const empleadoPassword = await bcrypt.hash('empleado123', 10);
+  const camareroPassword = await bcrypt.hash('camarero123', 10);
+
+  // Admin general
+  let adminUser = await prisma.usuario.findUnique({ where: { email: 'admin@smartlining.com' } });
+  if (!adminUser) {
+    adminUser = await prisma.usuario.create({
+      data: {
         nombre: 'Juan Administrador',
         email: 'admin@smartlining.com',
         password_hash: adminPassword,
         rol: 'ADMINISTRADOR' as any,
+        licencia: 'GENERAL' as any,
+        id_empresa: empresaGeneral.id_empresa,
       },
     });
-    await prisma.usuario.upsert({
-      where: { email: 'empleado1@smartlining.com' },
-      update: {},
-      create: {
+  }
+
+  // Empleado genérico
+  let empleadoUser = await prisma.usuario.findUnique({ where: { email: 'empleado1@smartlining.com' } });
+  if (!empleadoUser) {
+    empleadoUser = await prisma.usuario.create({
+      data: {
         nombre: 'María Empleada',
         email: 'empleado1@smartlining.com',
         password_hash: empleadoPassword,
         rol: 'EMPLEADO' as any,
+        licencia: 'GENERAL' as any,
+        id_empresa: empresaGeneral.id_empresa,
       },
     });
-  } catch (e) {
-    console.warn('No se pudieron crear usuarios (bcrypt import failed?)', e);
   }
 
-  // Ensure we have empleado IDs available for atenciones (fallback to admin if none)
-  const empleados = await prisma.usuario.findMany({ where: { rol: 'EMPLEADO' as any } });
-  empleadoIds = empleados.length ? empleados.map((e) => e.id_usuario) : [];
-  if (empleadoIds.length === 0) {
-    const admin = await prisma.usuario.findUnique({ where: { email: 'admin@smartlining.com' } });
-    if (admin) empleadoIds.push(admin.id_usuario);
+  // Admin del restaurante
+  let adminRestaurante = await prisma.usuario.findUnique({ where: { email: 'admin.restaurante@smartlining.com' } });
+  if (!adminRestaurante) {
+    adminRestaurante = await prisma.usuario.create({
+      data: {
+        nombre: 'Carlos Restaurante Admin',
+        email: 'admin.restaurante@smartlining.com',
+        password_hash: adminPassword,
+        rol: 'ADMINISTRADOR' as any,
+        licencia: 'RESTAURANTE' as any,
+        id_empresa: empresaRestaurante.id_empresa,
+      },
+    });
   }
-  console.log('📝 Usuarios asegurados (admin + empleados)');
+  console.log('👨‍💼  Admin restaurante:', adminRestaurante.email);
 
-  // Ensure many clients
+  // Camarero / Operador de restaurante
+  let camarero1 = await prisma.usuario.findUnique({ where: { email: 'camarero1@smartlining.com' } });
+  if (!camarero1) {
+    camarero1 = await prisma.usuario.create({
+      data: {
+        nombre: 'Ana Camarera',
+        email: 'camarero1@smartlining.com',
+        password_hash: camareroPassword,
+        rol: 'EMPLEADO' as any,
+        licencia: 'RESTAURANTE' as any,
+        id_empresa: empresaRestaurante.id_empresa,
+      },
+    });
+  }
+  console.log('🧑‍🍳  Camarero 1:', camarero1.email);
+
+  let camarero2 = await prisma.usuario.findUnique({ where: { email: 'camarero2@smartlining.com' } });
+  if (!camarero2) {
+    camarero2 = await prisma.usuario.create({
+      data: {
+        nombre: 'Pedro Camarero',
+        email: 'camarero2@smartlining.com',
+        password_hash: camareroPassword,
+        rol: 'EMPLEADO' as any,
+        licencia: 'RESTAURANTE' as any,
+        id_empresa: empresaRestaurante.id_empresa,
+      },
+    });
+  }
+  console.log('🧑‍🍳  Camarero 2:', camarero2.email);
+
+  console.log(`🔑  Credenciales:`);
+  console.log(`     Admin general:       admin@smartlining.com / admin123`);
+  console.log(`     Admin restaurante:   admin.restaurante@smartlining.com / admin123`);
+  console.log(`     Camarero 1:          camarero1@smartlining.com / camarero123`);
+  console.log(`     Camarero 2:          camarero2@smartlining.com / camarero123`);
+
+  // ========================================
+  // CLIENTES DE PRUEBA
+  // ========================================
   const CLIENT_COUNT = 200;
   const existingClients = await prisma.cliente.count();
   const clients: any[] = [];
@@ -97,7 +224,14 @@ async function main() {
     console.log(`👥 Clientes asegurados: ${clients.length}`);
   }
 
-  // Helper to create a turno
+  // ========================================
+  // EMPLEADOS PARA ATENCIONES
+  // ========================================
+  const empleadoIds = [adminUser.id_usuario, empleadoUser.id_usuario];
+
+  // ========================================
+  // HISTORIAL DE TURNOS GENÉRICOS
+  // ========================================
   const createTurno = async (
     colaId: number,
     clienteId: number,
@@ -106,7 +240,8 @@ async function main() {
     createdAt: Date,
     calledAt?: Date,
     startAt?: Date,
-    endAt?: Date
+    endAt?: Date,
+    numComensales?: number
   ) => {
     return prisma.turno.create({
       data: {
@@ -114,6 +249,7 @@ async function main() {
         id_cliente: clienteId,
         numero_turno: numero,
         estado,
+        num_comensales: numComensales ?? null,
         fecha_hora_creacion: createdAt,
         fecha_hora_llamada: calledAt ?? null,
         fecha_hora_inicio_atencion: startAt ?? null,
@@ -122,12 +258,14 @@ async function main() {
     });
   };
 
-  // Seed historical data for last DAYS days
   const DAYS = 14;
   let numeroCounter = (await prisma.turno.count()) + 1;
   const now = new Date();
 
   for (const q of createdQueues) {
+    // Saltar historial del restaurante — solo genera historial genérico
+    if (q.tipo === 'RESTAURANTE') continue;
+
     for (let d = 0; d < DAYS; d++) {
       const day = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - d));
       const base = 8 + (q.id_cola % 5) * 2;
@@ -187,7 +325,9 @@ async function main() {
     }
   }
 
-  // Ensure at least MIN_TODAY entries per queue (using UTC day boundaries)
+  // ========================================
+  // TURNOS DE HOY GENÉRICOS (mínimo 20)
+  // ========================================
   const MIN_TODAY = 20;
   const todayStart = new Date();
   todayStart.setUTCHours(0, 0, 0, 0);
@@ -195,6 +335,8 @@ async function main() {
   todayEnd.setUTCHours(23, 59, 59, 999);
 
   for (const q of createdQueues) {
+    if (q.tipo === 'RESTAURANTE') continue;
+
     const existingToday = await prisma.turno.count({
       where: { id_cola: q.id_cola, fecha_hora_creacion: { gte: todayStart, lte: todayEnd } },
     });
@@ -251,16 +393,22 @@ async function main() {
     }
   }
 
-  console.log('✨ Seeding completado correctamente!');
-  console.log('📊 Resumen de acciones:');
+  // ========================================
+  // RESUMEN
+  // ========================================
+  console.log('\n✨ Seeding completado correctamente!');
+  console.log('📊 Resumen:');
   const totalQueues = await prisma.cola.count();
+  const totalMesasCount = await prisma.mesa.count();
   const totalClients = await prisma.cliente.count();
   const totalTurnos = await prisma.turno.count();
   const totalAtenciones = await prisma.atencion.count();
   console.log(`   • Colas: ${totalQueues}`);
+  console.log(`   • Mesas: ${totalMesasCount}`);
   console.log(`   • Clientes: ${totalClients}`);
   console.log(`   • Turnos: ${totalTurnos}`);
   console.log(`   • Atenciones: ${totalAtenciones}`);
+  console.log(`   • ID Cola restaurante: ${restauranteCola.id_cola}`);
 }
 
 main()

@@ -1,11 +1,10 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../config/prisma';
 import { TurnoRepository } from '../repositories/turno.repository';
 import { getPaginationParams, formatPaginatedResponse } from '../repositories/base.repository';
 import { logger } from '../config/logger';
 
 const router = Router();
-const prisma = new PrismaClient();
 const turnoRepo = new TurnoRepository(prisma);
 
 /**

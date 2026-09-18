@@ -284,6 +284,186 @@ class ApiClient {
     return this.get(`/clientes/${id}`);
   }
 
+  // ========================================
+  // Modo Restaurante endpoints
+  // ========================================
+
+  // Mesas
+  async getMesasByCola(colaId: number) {
+    return this.get(`/restaurant/mesas/${colaId}`);
+  }
+
+  async getMesasLibresByCola(colaId: number) {
+    return this.get(`/restaurant/mesas/${colaId}/libres`);
+  }
+
+  async createMesa(data: { numero: number; capacidad: number; id_cola: number }) {
+    return this.post('/restaurant/mesas', data);
+  }
+
+  async updateMesa(id: number, data: { numero?: number; capacidad?: number; estado?: string }) {
+    return this.put(`/restaurant/mesas/${id}`, data);
+  }
+
+  async deleteMesa(id: number) {
+    return this.delete(`/restaurant/mesas/${id}`);
+  }
+
+  async crearMesasLote(id_cola: number, mesas: Array<{ numero: number; capacidad: number }>) {
+    return this.post('/restaurant/crear-mesas-lote', { id_cola, mesas });
+  }
+
+  // Acciones
+  async asignarMesa(mesaId: number, turnoId: number) {
+    return this.post(`/restaurant/asignar/${mesaId}/${turnoId}`);
+  }
+
+  async liberarMesa(mesaId: number, restablecer = true) {
+    return this.post(`/restaurant/liberar/${mesaId}`, { restablecer });
+  }
+
+  // Grupos de mesas
+  async juntarMesas(id_cola: number, mesa_ids: number[]) {
+    return this.post('/restaurant/juntar', { id_cola, mesa_ids });
+  }
+
+  async separarMesas(mesaId: number) {
+    return this.post(`/restaurant/separar/${mesaId}`);
+  }
+
+  // Sillas extra
+  async addSilla(mesaId: number, cantidad = 1) {
+    return this.post(`/restaurant/silla/${mesaId}/${cantidad}`);
+  }
+
+  async removeSilla(mesaId: number, cantidad = 1) {
+    return this.post(`/restaurant/silla/${mesaId}/${-cantidad}`);
+  }
+
+  // Cola restaurante
+  async getColaRestaurante(colaId: number) {
+    return this.get(`/restaurant/cola-activa/${colaId}`);
+  }
+
+  async createTurnoRestaurante(data: { id_cola: number; id_cliente: number; num_comensales: number }) {
+    return this.post('/restaurant/turno', data);
+  }
+
+  async getRestaurantStats(colaId: number) {
+    return this.get(`/restaurant/stats/${colaId}`);
+  }
+
+  // ========================================
+  // Gestión de sala (Fase 2/3)
+  // ========================================
+
+  // Zonas
+  async getZonasByCola(colaId: number) {
+    const response = await this.instance.get(`/restaurant/zonas/${colaId}`);
+    return response.data;
+  }
+
+  async createZona(data: { id_cola: number; nombre: string; tipo?: string; orden?: number; activa?: boolean }) {
+    return this.post('/restaurant/zonas', data);
+  }
+
+  async updateZona(id: number, data: { nombre?: string; tipo?: string; orden?: number; activa?: boolean }) {
+    return this.put(`/restaurant/zonas/${id}`, data);
+  }
+
+  async deleteZona(id: number) {
+    return this.delete(`/restaurant/zonas/${id}`);
+  }
+
+  async asignarMesasZona(id: number, mesa_ids: number[]) {
+    return this.post(`/restaurant/zonas/${id}/asignar-mesas`, { mesa_ids });
+  }
+
+  // Reservas
+  async getReservas(colaId: number, params?: { fecha?: string; estado?: string; cliente?: string }) {
+    const response = await this.instance.get(`/restaurant/reservas/${colaId}`, { params });
+    return response.data;
+  }
+
+  async createReserva(data: unknown) {
+    return this.post('/restaurant/reservas', data);
+  }
+
+  async updateReserva(id: number, data: unknown) {
+    return this.put(`/restaurant/reservas/${id}`, data);
+  }
+
+  async updateReservaEstado(id: number, estado: string) {
+    return this.patch(`/restaurant/reservas/${id}/estado`, { estado });
+  }
+
+  async deleteReserva(id: number) {
+    return this.delete(`/restaurant/reservas/${id}`);
+  }
+
+  // Waitlist
+  async getWaitlist(colaId: number, params?: { estado?: string; activas?: boolean }) {
+    const response = await this.instance.get(`/restaurant/waitlist/${colaId}`, { params });
+    return response.data;
+  }
+
+  async createWaitlist(data: unknown) {
+    return this.post('/restaurant/waitlist', data);
+  }
+
+  async updateWaitlist(id: number, data: unknown) {
+    return this.put(`/restaurant/waitlist/${id}`, data);
+  }
+
+  async updateWaitlistEstado(id: number, estado: string) {
+    return this.patch(`/restaurant/waitlist/${id}/estado`, { estado });
+  }
+
+  async deleteWaitlist(id: number) {
+    return this.delete(`/restaurant/waitlist/${id}`);
+  }
+
+  // Disponibilidad / Dashboard / Asignación v2
+  async getDisponibilidad(
+    colaId: number,
+    params: { fecha: string; hora: string; comensales: number; zona?: number; duracion_min?: number }
+  ) {
+    const response = await this.instance.get(`/restaurant/disponibilidad/${colaId}`, { params });
+    return response.data;
+  }
+
+  async getDashboardSala(colaId: number) {
+    return this.get(`/restaurant/dashboard/${colaId}`);
+  }
+
+  async asignarMesaSala(data: unknown) {
+    return this.post('/restaurant/asignar', data);
+  }
+
+  // ========================================
+  // Restaurante público (sin auth) — flujo QR
+  // ========================================
+
+  async getPublicRestaurantes() {
+    return this.get('/restaurant/public/restaurantes');
+  }
+
+  async getPublicRestaurante(colaId: number) {
+    return this.get(`/restaurant/public/restaurantes/${colaId}`);
+  }
+
+  async getPublicDisponibilidad(
+    colaId: number,
+    params: { fecha: string; hora: string; comensales: number; duracion_min?: number }
+  ) {
+    const response = await this.instance.get(`/restaurant/public/disponibilidad/${colaId}`, { params });
+    return response.data;
+  }
+
+  async createPublicReserva(data: unknown) {
+    return this.post('/restaurant/public/reservas', data);
+  }
+
   // Health check
   async health() {
     return this.get('/health');

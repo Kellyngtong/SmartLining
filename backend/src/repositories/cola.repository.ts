@@ -5,18 +5,23 @@ export interface CreateColaDTO {
   nombre: string;
   descripcion?: string;
   activa?: boolean;
+  id_empresa: number;
+  tipo?: string;
 }
 
 export interface UpdateColaDTO {
   nombre?: string;
   descripcion?: string;
   activa?: boolean;
+  tipo?: string;
 }
 
 export interface ColaRepositoryResult {
   id_cola: number;
+  id_empresa: number;
   nombre: string;
   descripcion: string | null;
+  tipo: string;
   activa: boolean;
   fecha_creacion: Date;
 }
@@ -85,17 +90,24 @@ export class ColaRepository extends BaseRepository<
     };
   }
 
-  async findAll(options?: { skip?: number; take?: number }): Promise<ColaRepositoryResult[]> {
+  async findAll(
+    options?: { skip?: number; take?: number },
+    idEmpresa?: number
+  ): Promise<ColaRepositoryResult[]> {
     return this.prisma.cola.findMany({
+      where: idEmpresa ? { id_empresa: idEmpresa } : undefined,
       skip: options?.skip,
       take: options?.take,
       orderBy: { fecha_creacion: 'desc' },
     });
   }
 
-  async findActive(options?: { skip?: number; take?: number }): Promise<ColaRepositoryResult[]> {
+  async findActive(
+    options?: { skip?: number; take?: number },
+    idEmpresa?: number
+  ): Promise<ColaRepositoryResult[]> {
     return this.prisma.cola.findMany({
-      where: { activa: true },
+      where: { activa: true, ...(idEmpresa ? { id_empresa: idEmpresa } : {}) },
       skip: options?.skip,
       take: options?.take,
       orderBy: { fecha_creacion: 'desc' },
@@ -116,6 +128,8 @@ export class ColaRepository extends BaseRepository<
         nombre: data.nombre,
         descripcion: data.descripcion,
         activa: data.activa ?? true,
+        tipo: data.tipo ?? 'GENERICA',
+        id_empresa: data.id_empresa,
       },
     });
   }
@@ -130,6 +144,7 @@ export class ColaRepository extends BaseRepository<
             descripcion: data.descripcion,
           }),
           ...(data.activa !== undefined && { activa: data.activa }),
+          ...(data.tipo !== undefined && { tipo: data.tipo }),
         },
       })
       .catch(() => null);
@@ -146,8 +161,8 @@ export class ColaRepository extends BaseRepository<
     }
   }
 
-  async count(): Promise<number> {
-    return this.prisma.cola.count();
+  async count(where?: { id_empresa?: number }): Promise<number> {
+    return this.prisma.cola.count({ where });
   }
 
   async countActive(): Promise<number> {

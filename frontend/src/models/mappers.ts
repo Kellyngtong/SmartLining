@@ -8,6 +8,7 @@ import {
   Valoracion,
   Evento,
   ColaEvento,
+  Mesa,
 } from './index';
 
 // ================================
@@ -85,6 +86,19 @@ export interface RawEvento {
 export interface RawColaEvento {
   id_cola: number;
   id_evento: number;
+}
+
+export interface RawMesa {
+  id_mesa: number;
+  numero: number;
+  capacidad: number;
+  capacidad_extra?: number;
+  estado: string;
+  id_cola: number;
+  capacidad_efectiva?: number;
+  grupo?: { id_grupo: number; numero: number; capacidad_total: number } | null;
+  fecha_creacion: string;
+  fecha_actualizacion: string;
 }
 
 // ================================
@@ -306,5 +320,37 @@ export const ColaEventoMapper = {
   toDTO: (domain: ColaEvento) => ({
     id_cola: domain.id_cola,
     id_evento: domain.id_evento,
+  }),
+};
+
+export const MesaMapper = {
+  toDomain: (raw: RawMesa): Mesa => {
+    return new Mesa({
+      id_mesa: raw.id_mesa,
+      numero: raw.numero,
+      capacidad: raw.capacidad,
+      capacidad_extra: raw.capacidad_extra,
+      estado: raw.estado,
+      id_cola: raw.id_cola,
+      capacidad_efectiva: raw.capacidad_efectiva,
+      grupo: raw.grupo,
+      fecha_creacion: raw.fecha_creacion,
+      fecha_actualizacion: raw.fecha_actualizacion,
+    });
+  },
+
+  toDomainArray: (rawArray: RawMesa[]): Mesa[] => {
+    return rawArray.map(MesaMapper.toDomain);
+  },
+
+  toDTO: (domain: Mesa) => ({
+    id_mesa: domain.id_mesa,
+    numero: domain.numero,
+    capacidad: domain.capacidad,
+    capacidad_extra: domain.capacidad_extra,
+    estado: domain.estado,
+    id_cola: domain.id_cola,
+    fecha_creacion: domain.fecha_creacion.toISOString(),
+    fecha_actualizacion: domain.fecha_actualizacion.toISOString(),
   }),
 };

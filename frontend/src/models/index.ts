@@ -328,3 +328,75 @@ export class ColaEvento {
     this.id_evento = data.id_evento;
   }
 }
+
+/**
+ * Mesa - Mesa de un restaurante (Modo Restaurante)
+ */
+export type EstadoMesa = 'LIBRE' | 'OCUPADA' | 'RESERVADA' | 'AGRUPADA';
+
+export interface MesaGrupoInfo {
+  id_grupo: number;
+  numero: number;
+  capacidad_total: number;
+}
+
+export class Mesa {
+  id_mesa: number;
+  numero: number;
+  capacidad: number;
+  capacidad_extra: number;
+  estado: EstadoMesa;
+  id_cola: number;
+  capacidad_efectiva?: number;
+  grupo?: MesaGrupoInfo | null;
+  fecha_creacion: Date;
+  fecha_actualizacion: Date;
+
+  constructor(data: {
+    id_mesa: number;
+    numero: number;
+    capacidad: number;
+    capacidad_extra?: number;
+    estado: string;
+    id_cola: number;
+    capacidad_efectiva?: number;
+    grupo?: MesaGrupoInfo | null;
+    fecha_creacion: string | Date;
+    fecha_actualizacion: string | Date;
+  }) {
+    this.id_mesa = data.id_mesa;
+    this.numero = data.numero;
+    this.capacidad = data.capacidad;
+    this.capacidad_extra = data.capacidad_extra ?? 0;
+    this.estado = data.estado as EstadoMesa;
+    this.id_cola = data.id_cola;
+    this.capacidad_efectiva = data.capacidad_efectiva;
+    this.grupo = data.grupo ?? null;
+    this.fecha_creacion =
+      typeof data.fecha_creacion === 'string' ? new Date(data.fecha_creacion) : data.fecha_creacion;
+    this.fecha_actualizacion =
+      typeof data.fecha_actualizacion === 'string'
+        ? new Date(data.fecha_actualizacion)
+        : data.fecha_actualizacion;
+  }
+
+  isLibre(): boolean {
+    return this.estado === 'LIBRE';
+  }
+
+  isOcupada(): boolean {
+    return this.estado === 'OCUPADA';
+  }
+
+  isReservada(): boolean {
+    return this.estado === 'RESERVADA';
+  }
+
+  isAgrupada(): boolean {
+    return this.estado === 'AGRUPADA';
+  }
+
+  getCapacidadEfectiva(): number {
+    return this.capacidad + this.capacidad_extra;
+  }
+}

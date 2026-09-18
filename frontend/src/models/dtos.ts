@@ -186,6 +186,90 @@ export interface HealthResponseDTO {
 }
 
 // ================================
+// Modo Restaurante - DTOs
+// ================================
+
+export interface CreateMesaRequestDTO {
+  numero: number;
+  capacidad: number;
+  id_cola: number;
+}
+
+export interface UpdateMesaRequestDTO {
+  numero?: number;
+  capacidad?: number;
+  estado?: string;
+}
+
+export interface CreateTurnoRestauranteDTO {
+  id_cola: number;
+  id_cliente: number;
+  num_comensales: number;
+}
+
+export interface ColaRestauranteResponseDTO {
+  success: boolean;
+  data: {
+    mesas: Array<{
+      id_mesa: number;
+      numero: number;
+      capacidad: number;
+      estado: string;
+      id_cola: number;
+      fecha_creacion: string;
+      fecha_actualizacion: string;
+    }>;
+    turnosEspera: Array<{
+      id_turno: number;
+      numero_turno: number;
+      num_comensales: number | null;
+      categoria: string | null;
+      cliente_nombre?: string;
+      fecha_hora_creacion: string;
+      posicion: number;
+      eta_minutos: number;
+    }>;
+    turnosAtencion: Array<any>;
+    stats: {
+      totalMesas: number;
+      mesasLibres: number;
+      mesasOcupadas: number;
+      turnosEnEspera: number;
+      turnosEnAtencion: number;
+      maxCapacidadRestaurante: number;
+    };
+  };
+  message?: string;
+  error?: string;
+}
+
+export interface RestaurantTurnoResponseDTO {
+  success: boolean;
+  data: {
+    turno: {
+      id_turno: number;
+      numero_turno: number;
+      num_comensales: number | null;
+      categoria: string | null;
+      estado: string;
+    };
+    match: {
+      turno: any;
+      mesa: any;
+    } | null;
+    meta: {
+      esGranGrupo: boolean;
+      categoria: string | null;
+      posicion: number;
+      etaMinutos: number;
+      maxCapacidadRestaurante: number;
+    };
+  };
+  message?: string;
+  error?: string;
+}
+
+// ================================
 // Generic API Response Wrapper
 // ================================
 

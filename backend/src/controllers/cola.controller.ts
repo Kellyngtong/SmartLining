@@ -1,25 +1,32 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../config/prisma';
 import { ColaRepository } from '../repositories/cola.repository';
 import { getPaginationParams, formatPaginatedResponse } from '../repositories/base.repository';
 import { logger } from '../config/logger';
 import sse from '../sse';
+import {
+  authMiddleware,
+  optionalAuthMiddleware,
+} from '../middleware/auth.middleware';
 
 const router = Router();
-const prisma = new PrismaClient();
 const colaRepo = new ColaRepository(prisma);
 
 /**
  * GET /api/colas
- * Listar todas las colas con paginación
+ * Listar colas del tenant del usuario autenticado con paginación
  */
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', authMiddleware, async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const { skip, take } = getPaginationParams(page, limit);
 
-    const [colas, total] = await Promise.all([colaRepo.findAll({ skip, take }), colaRepo.count()]);
+    const idEmpresa = req.user?.id_empresa;
+    const [colas, total] = await Promise.all([
+      colaRepo.findAll({ skip, take }, idEmpresa),
+      colaRepo.count({ id_empresa: idEmpresa }),
+    ]);
 
     const pagination = formatPaginatedResponse(colas, total, page, limit);
     return res.json({
@@ -37,16 +44,17 @@ router.get('/', async (req: Request, res: Response) => {
 
 /**
  * GET /api/colas/activas
- * Listar solo las colas activas
+ * Listar solo las colas activas del tenant del usuario autenticado
  */
-router.get('/activas', async (req: Request, res: Response) => {
+router.get('/activas', authMiddleware, async (req: Request, res: Response) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const { skip, take } = getPaginationParams(page, limit);
 
-    const colas = await colaRepo.findActive({ skip, take });
-    const total = await prisma.cola.count({ where: { activa: true } });
+    const idEmpresa = req.user?.id_empresa;
+    const colas = await colaRepo.findActive({ skip, take }, idEmpresa);
+    const total = await prisma.cola.count({ where: { activa: true, id_empresa: idEmpresa } });
 
     const pagination = formatPaginatedResponse(colas, total, page, limit);
     return res.json({
@@ -64,9 +72,11 @@ router.get('/activas', async (req: Request, res: Response) => {
 
 /**
  * GET /api/colas/:id
- * Obtener detalle de una cola con horarios y eventos
+ * Obtener detalle de una cola con horarios y eventos.
+ * Público para el flujo QR (sin token). Si el usuario está autenticado,
+ * verifica que la cola pertenezca a su tenant (multitenancy).
  */
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/:id', optionalAuthMiddleware, async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id as string);
 
@@ -86,6 +96,14 @@ router.get('/:id', async (req: Request, res: Response) => {
       });
     }
 
+    // Aislamiento por tenant: si hay usuario autenticado, debe ser de la misma empresa
+    if (req.user && cola.id_empresa !== req.user.id_empresa) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied: queue belongs to another tenant',
+      });
+    }
+
     return res.json({
       success: true,
       data: cola,
@@ -101,11 +119,18 @@ router.get('/:id', async (req: Request, res: Response) => {
 
 /**
  * POST /api/colas
- * Crear una nueva cola (requiere autenticación ADMINISTRADOR)
+ * Crear una nueva cola para el tenant del usuario autenticado (requiere ADMINISTRADOR)
  */
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const { nombre, descripcion, activa } = req.body;
+    const { nombre, descripcion, activa, tipo } = req.body;
+
+    if (req.user?.rol !== 'ADMINISTRADOR') {
+      return res.status(403).json({
+        success: false,
+        error: 'Only administrators can create queues',
+      });
+    }
 
     // Validación básica
     if (!nombre || typeof nombre !== 'string' || nombre.trim().length === 0) {
@@ -115,8 +140,12 @@ router.post('/', async (req: Request, res: Response) => {
       });
     }
 
-    // Verificar nombre único
-    const exists = await colaRepo.findByNombre(nombre);
+    const idEmpresa = req.user?.id_empresa;
+
+    // Verificar nombre único dentro del tenant
+    const exists = await prisma.cola.findFirst({
+      where: { nombre: nombre.trim(), id_empresa: idEmpresa },
+    });
     if (exists) {
       return res.status(409).json({
         success: false,
@@ -128,6 +157,8 @@ router.post('/', async (req: Request, res: Response) => {
       nombre: nombre.trim(),
       descripcion: descripcion?.trim(),
       activa: activa ?? true,
+      tipo: tipo ?? 'GENERICA',
+      id_empresa: idEmpresa!,
     });
 
     return res.status(201).json({
@@ -146,9 +177,9 @@ router.post('/', async (req: Request, res: Response) => {
 
 /**
  * PATCH /api/colas/:id
- * Actualizar una cola
+ * Actualizar una cola del tenant (requiere ADMINISTRADOR)
  */
-router.patch('/:id', async (req: Request, res: Response) => {
+router.patch('/:id', authMiddleware, async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id as string);
     const { nombre, descripcion, activa } = req.body;
@@ -160,18 +191,26 @@ router.patch('/:id', async (req: Request, res: Response) => {
       });
     }
 
-    const cola = await colaRepo.update(id, {
-      nombre,
-      descripcion,
-      activa,
-    });
-
-    if (!cola) {
+    const existing = await colaRepo.findById(id);
+    if (!existing) {
       return res.status(404).json({
         success: false,
         error: 'Queue not found',
       });
     }
+    // Aislamiento por tenant
+    if (existing.id_empresa !== req.user?.id_empresa) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied: queue belongs to another tenant',
+      });
+    }
+
+    const cola = await colaRepo.update(id, {
+      nombre,
+      descripcion,
+      activa,
+    });
 
     return res.json({
       success: true,
@@ -189,9 +228,9 @@ router.patch('/:id', async (req: Request, res: Response) => {
 
 /**
  * DELETE /api/colas/:id
- * Eliminar una cola
+ * Eliminar una cola del tenant (requiere ADMINISTRADOR)
  */
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', authMiddleware, async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id as string);
 
@@ -199,6 +238,21 @@ router.delete('/:id', async (req: Request, res: Response) => {
       return res.status(400).json({
         success: false,
         error: 'Invalid queue ID',
+      });
+    }
+
+    const existing = await colaRepo.findById(id);
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        error: 'Queue not found',
+      });
+    }
+    // Aislamiento por tenant
+    if (existing.id_empresa !== req.user?.id_empresa) {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied: queue belongs to another tenant',
       });
     }
 

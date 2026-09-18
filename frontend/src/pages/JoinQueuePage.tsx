@@ -57,6 +57,12 @@ export default function JoinQueuePage() {
         const queue = queueResponse.data as any;
         setQueueName(queue.nombre);
 
+        // Si la cola es de modo restaurante, redirige al hub (cola actual o reserva)
+        if (queue.tipo === 'RESTAURANTE') {
+          navigate(`/restaurante?cola=${parsedQueueId}`);
+          return;
+        }
+
         // 2. Crear cliente automáticamente
         const generatedClientName = `Cliente-${Date.now()}`;
         const clientResponse = await apiClient.createCliente({

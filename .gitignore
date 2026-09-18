@@ -423,3 +423,5 @@ FodyWeavers.xsd
 .DS_Store
 .AppleDouble
 .LSOverride
+
+package-lock.json
