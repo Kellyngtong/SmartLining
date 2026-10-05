@@ -6,6 +6,7 @@ import prisma from '../config/prisma';
 import sse from '../sse';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { TableAllocationService } from '../services/tableAllocation.service';
+import { registrarActividad } from '../utils/actividad';
 
 const router = Router();
 const mesaRepo = new MesaRepository(prisma);
@@ -181,6 +182,12 @@ router.post('/mesas/:id/:accion', authMiddleware, async (req: Request, res: Resp
     } catch (e) {
       logger.warn('Failed to send SSE MESA_ESTADO', e);
     }
+    registrarActividad({
+      id_cola: mesa.id_cola,
+      tipo: 'MESA_ESTADO',
+      descripcion: `Mesa ${mesa.numero} → ${nuevoEstado}`,
+      id_mesa: id,
+    });
     return res.json({ success: true, data: updated, message: `Mesa ${accion} correctamente` });
   } catch (error) {
     logger.error('Error en acción de mesa:', error);
@@ -361,14 +368,16 @@ router.post('/liberar/:mesaId', authMiddleware, async (req: Request, res: Respon
     // ¿La mesa pertenece a un grupo?
     const grupo = await mesaRepo.findGrupoByMesa(mesaId);
 
-    // Si tiene turno asociado, finalizar ese turno
+    // Si tiene turno asociado, finalizar ese turno y soltar su referencia a la mesa
+    // (mesa_id es UNIQUE: sin esto, el próximo sentado en esta mesa daría 500)
     const turnoAsociado = await prisma.turno.findFirst({
       where: { mesa_id: mesaId, estado: 'EN_ATENCION' },
+      include: { cliente: { select: { nombre: true } } },
     });
     if (turnoAsociado) {
       await prisma.turno.update({
         where: { id_turno: turnoAsociado.id_turno },
-        data: { estado: 'FINALIZADO', fecha_hora_fin_atencion: new Date() },
+        data: { estado: 'FINALIZADO', fecha_hora_fin_atencion: new Date(), mesa_id: null },
       });
     }
 
@@ -412,16 +421,98 @@ router.post('/liberar/:mesaId', authMiddleware, async (req: Request, res: Respon
     } catch (e) {
       logger.warn('Failed to send SSE MESA_LIBERADA', e);
     }
+    registrarActividad({
+      id_cola: mesa.id_cola,
+      tipo: 'MESA_LIBERADA',
+      descripcion: turnoAsociado
+        ? `Mesa ${mesa.numero} liberada — salió turno ${turnoAsociado.numero_turno} (${turnoAsociado.cliente?.nombre ?? '?'})`
+        : `Mesa ${mesa.numero} liberada`,
+      id_mesa: mesaId,
+      id_turno: turnoAsociado?.id_turno ?? null,
+    });
 
     // Intentar auto-match con la capacidad efectiva liberada
-    // 1) turnos legacy; 2) waitlist (colas de espera del restaurante)
+    // 1) turnos legacy; 2) waitlist (colas de espera del restaurante).
+    // Blindado: si el match falla, la mesa queda libre igualmente y se explica el motivo.
     const capacidadLiberada = grupo
       ? (restablecer ? grupo.capacidad_total : grupo.capacidad_total)
       : mesa.capacidad + (restablecer ? 0 : mesa.capacidad_extra);
-    let match = await allocationService.autoMatchAlLiberar(mesa.id_cola, capacidadLiberada);
-    let matchWaitlist = null;
-    if (!match) {
-      matchWaitlist = await allocationService.autoMatchWaitlistAlLiberar(mesa.id_cola, capacidadLiberada);
+    let match: { turno: { id_turno: number }; mesa: unknown } | null = null;
+    let matchWaitlist: { id_asignacion: number; mesa: unknown } | null = null;
+    let matchError: string | null = null;
+    try {
+      match = await allocationService.autoMatchAlLiberar(mesa.id_cola, capacidadLiberada);
+      if (!match) {
+        matchWaitlist = await allocationService.autoMatchWaitlistAlLiberar(mesa.id_cola, capacidadLiberada);
+      }
+    } catch (e) {
+      logger.warn('Auto-match al liberar falló (mesa ya libre):', e);
+      matchError = 'ERROR_MATCH';
+    }
+
+    // Si no hubo match, explicar por qué y sugerir el mejor candidato (1 clic).
+    // Si el matcher falló con excepción, se informa ERROR_MATCH pero se sugiere igual.
+    let matchOmitido: string | null = null;
+    let sugerencia: { tipo: 'TURNO' | 'WAITLIST'; id: number; nombre: string; comensales: number } | null = null;
+    if (!match && !matchWaitlist) {
+      const [legacy, wl] = await Promise.all([
+        prisma.turno.findMany({
+          where: { id_cola: mesa.id_cola, estado: 'EN_ESPERA', num_comensales: { not: null } },
+          orderBy: { fecha_hora_creacion: 'asc' },
+          include: { cliente: { select: { nombre: true } } },
+        }),
+        prisma.waitlistEntry.findMany({
+          where: { id_cola: mesa.id_cola, estado: { in: ['ESPERANDO', 'NOTIFICADO'] } },
+          orderBy: [{ prioridad: 'desc' }, { hora_llegada: 'asc' }],
+        }),
+      ]);
+      const fitLegacy = legacy.filter(t => t.categoria !== 'GRAN_TAMANO' && (t.num_comensales ?? 0) <= capacidadLiberada);
+      const fitWl = wl.filter(w => w.num_comensales <= capacidadLiberada);
+      if (fitLegacy.length > 0 || fitWl.length > 0) {
+        matchOmitido = 'SIN_MESA_COMPATIBLE';
+        const candLegacy = fitLegacy[0] ?? null;
+        const candWl = fitWl[0] ?? null;
+        if (candLegacy && (!candWl || candLegacy.fecha_hora_creacion <= candWl.hora_llegada)) {
+          sugerencia = {
+            tipo: 'TURNO',
+            id: candLegacy.id_turno,
+            nombre: candLegacy.cliente?.nombre ? `Turno ${candLegacy.numero_turno} · ${candLegacy.cliente.nombre}` : `Turno ${candLegacy.numero_turno}`,
+            comensales: candLegacy.num_comensales ?? 0,
+          };
+        } else if (candWl) {
+          sugerencia = { tipo: 'WAITLIST', id: candWl.id_waitlist, nombre: candWl.cliente_nombre, comensales: candWl.num_comensales };
+        }
+      } else if (legacy.length > 0 || wl.length > 0) {
+        const primeroLegacy = legacy[0] ?? null;
+        const primeroWl = wl[0] ?? null;
+        if (primeroLegacy && primeroLegacy.categoria === 'GRAN_TAMANO'
+          && (!primeroWl || primeroLegacy.fecha_hora_creacion <= primeroWl.hora_llegada)) {
+          matchOmitido = 'GRAN_TAMANO';
+          sugerencia = {
+            tipo: 'TURNO',
+            id: primeroLegacy.id_turno,
+            nombre: primeroLegacy.cliente?.nombre ? `Turno ${primeroLegacy.numero_turno} · ${primeroLegacy.cliente.nombre}` : `Turno ${primeroLegacy.numero_turno}`,
+            comensales: primeroLegacy.num_comensales ?? 0,
+          };
+        } else {
+          matchOmitido = 'GRUPO_GRANDE';
+          if (primeroLegacy && (!primeroWl || primeroLegacy.fecha_hora_creacion <= primeroWl.hora_llegada)) {
+            sugerencia = {
+              tipo: 'TURNO',
+              id: primeroLegacy.id_turno,
+              nombre: primeroLegacy.cliente?.nombre ? `Turno ${primeroLegacy.numero_turno} · ${primeroLegacy.cliente.nombre}` : `Turno ${primeroLegacy.numero_turno}`,
+              comensales: primeroLegacy.num_comensales ?? 0,
+            };
+          } else if (primeroWl) {
+            sugerencia = { tipo: 'WAITLIST', id: primeroWl.id_waitlist, nombre: primeroWl.cliente_nombre, comensales: primeroWl.num_comensales };
+          }
+        }
+      } else {
+        matchOmitido = 'SIN_ESPERA';
+      }
+      if (matchError && matchOmitido !== 'SIN_ESPERA') {
+        matchOmitido = 'ERROR_MATCH';
+      }
     }
 
     return res.json({
@@ -433,8 +524,10 @@ router.post('/liberar/:mesaId', authMiddleware, async (req: Request, res: Respon
           ? { turnoId: match.turno.id_turno, mesa: match.mesa }
           : null,
         matchWaitlist: matchWaitlist
-          ? { asignacionId: matchWaitlist.id_asignacion, mesa: matchWaitlist.mesa }
+          ? { asignacionId: matchWaitlist.id_asignacion, id_waitlist: (matchWaitlist as any).id_waitlist ?? null, mesa: matchWaitlist.mesa }
           : null,
+        matchOmitido,
+        sugerencia,
       },
       message: 'Mesa freed' + (grupoDisuelto ? ' y grupo disuelto' : '') + (match || matchWaitlist ? ' y reasignada' : ''),
     });
@@ -525,6 +618,58 @@ router.get('/cola-activa/:colaId', authMiddleware, async (req: Request, res: Res
       maxCapacidadRestaurante: maxCap,
     };
 
+    // Ocupación actual por mesa (para el badge de ocupante): turnos EN_ATENCION
+    // + asignaciones ACTIVAS (estas últimas mandan si coinciden en una mesa).
+    const ocupacion: Record<number, { tipo: string; nombre: string; detalle: string; comensales: number }> = {};
+    try {
+      const [ocupando, activas] = await Promise.all([
+        prisma.turno.findMany({
+          where: { id_cola: colaId, estado: 'EN_ATENCION', mesa_id: { not: null } },
+          include: { cliente: { select: { nombre: true } } },
+        }),
+        prisma.tableAssignment.findMany({
+          where: { id_cola: colaId, estado: 'ACTIVA' },
+          include: {
+            reserva: { select: { id_reserva: true, cliente_nombre: true, hora_inicio: true } },
+            waitlist: { select: { id_waitlist: true, cliente_nombre: true } },
+            grupo: { include: { mesas: { select: { id_mesa: true } } } },
+          },
+        }),
+      ]);
+      for (const t of ocupando) {
+        if (t.mesa_id == null) continue;
+        ocupacion[t.mesa_id] = {
+          tipo: 'TURNO',
+          nombre: t.cliente?.nombre ?? `Turno ${t.numero_turno}`,
+          detalle: `Turno ${t.numero_turno}`,
+          comensales: t.num_comensales ?? 0,
+        };
+      }
+      const hhmmAct = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      for (const a of activas) {
+        const ids = [a.mesa_id, ...(a.grupo?.mesas.map((m) => m.id_mesa) ?? [])];
+        const info = a.id_reserva && a.reserva
+          ? {
+              tipo: 'RESERVA',
+              nombre: a.reserva.cliente_nombre,
+              detalle: `Reserva ${hhmmAct(a.reserva.hora_inicio)}`,
+              comensales: a.num_comensales,
+            }
+          : a.id_waitlist && a.waitlist
+            ? {
+                tipo: 'WAITLIST',
+                nombre: a.waitlist.cliente_nombre,
+                detalle: 'En espera sentada',
+                comensales: a.num_comensales,
+              }
+            : null;
+        if (!info) continue;
+        for (const idm of ids) ocupacion[idm] = info;
+      }
+    } catch (e) {
+      logger.warn('No se pudo calcular ocupación:', e);
+    }
+
     return res.json({
       success: true,
       data: {
@@ -532,11 +677,38 @@ router.get('/cola-activa/:colaId', authMiddleware, async (req: Request, res: Res
         turnosEspera: turnosEsperaConEta,
         turnosAtencion,
         stats,
+        ocupacion,
       },
     });
   } catch (error) {
     logger.error('Error fetching cola activa:', error);
     return res.status(500).json({ success: false, error: 'Error fetching cola activa' });
+  }
+});
+
+// ==========================================
+// GET /api/restaurant/actividad/:colaId?limit=50
+// Últimos eventos visibles de sala (auth + tenant)
+// ==========================================
+router.get('/actividad/:colaId', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const colaId = parseInt(req.params.colaId as string);
+    if (isNaN(colaId)) {
+      return res.status(400).json({ success: false, error: 'Invalid cola ID' });
+    }
+    if (!(await puedeAccederACola(colaId, req.user?.id_empresa))) {
+      return res.status(403).json({ success: false, error: 'Access denied: cola belongs to another tenant' });
+    }
+    const limit = Math.min(parseInt(req.query.limit as string, 10) || 50, 200);
+    const actividad = await prisma.actividadLog.findMany({
+      where: { id_cola: colaId },
+      orderBy: { created_at: 'desc' },
+      take: limit,
+    });
+    return res.json({ success: true, data: actividad });
+  } catch (error) {
+    logger.error('Error fetching actividad:', error);
+    return res.status(500).json({ success: false, error: 'Error fetching actividad' });
   }
 });
 
@@ -928,6 +1100,8 @@ router.patch('/turno/:turnoId', authMiddleware, async (req: Request, res: Respon
         ...(estado === 'EN_ESPERA' || estado === 'FINALIZADO' || estado === 'CANCELADO'
           ? { estado }
           : {}),
+        // Al finalizar se suelta la mesa (mesa_id es UNIQUE: evita referencias fantasma)
+        ...(estado === 'FINALIZADO' ? { mesa_id: null } : {}),
       },
     });
 

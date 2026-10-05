@@ -508,7 +508,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   main: {
     padding: '20px',
-    maxWidth: '1200px',
+    maxWidth: '1400px',
     margin: '0 auto',
   },
   kpiRow: {

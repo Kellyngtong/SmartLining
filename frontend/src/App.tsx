@@ -20,6 +20,7 @@ import RestaurantOperatorPage from './pages/RestaurantOperatorPage';
 import RestaurantAdminPage from './pages/RestaurantAdminPage';
 import RestaurantHubPage from './pages/RestaurantHubPage';
 import RestaurantReservaPage from './pages/RestaurantReservaPage';
+import MiReservaPage from './pages/MiReservaPage';
 
 function App() {
   // Call restoreSession once on mount using the store getter to avoid
@@ -36,6 +37,7 @@ function App() {
       '/join-queue',
       '/admin/dashboard',
       '/restaurante/reserva',
+      '/restaurante/mi-reserva',
       '/restaurante/cola',
       '/restaurante/ticket',
     ];
@@ -56,6 +58,7 @@ function App() {
           {/* Public routes - Modo Restaurante (clientes) */}
           <Route path="/restaurante" element={<RestaurantHubPage />} />
           <Route path="/restaurante/reserva/:colaId" element={<RestaurantReservaPage />} />
+          <Route path="/restaurante/mi-reserva/:token" element={<MiReservaPage />} />
           <Route path="/restaurante/cola/:colaId" element={<RestaurantQueuePage />} />
           <Route path="/restaurante/ticket/:turnoId" element={<RestaurantTicketPage />} />
 

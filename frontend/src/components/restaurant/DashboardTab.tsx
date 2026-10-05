@@ -1,6 +1,7 @@
-import React from 'react';
-import { Users, CalendarDays, Clock, Utensils, LayoutGrid } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Users, CalendarDays, Clock, Utensils, LayoutGrid, TrendingUp } from 'lucide-react';
 import { DashboardSala } from '../../types';
+import { apiClient } from '../../services/api';
 import '../../styles/restaurant.css';
 
 const ESTADO_COLOR: Record<string, string> = {
@@ -15,9 +16,20 @@ const ESTADO_COLOR: Record<string, string> = {
 
 interface DashboardTabProps {
   dashboard: DashboardSala | null;
+  colaId?: number;
 }
 
-const DashboardTab: React.FC<DashboardTabProps> = ({ dashboard }) => {
+const DashboardTab: React.FC<DashboardTabProps> = ({ dashboard, colaId }) => {
+  const [reporte, setReporte] = useState<any>(null);
+
+  useEffect(() => {
+    if (!colaId) return;
+    apiClient
+      .getReporteReservas(colaId)
+      .then(res => setReporte(res.data))
+      .catch(() => {});
+  }, [colaId]);
+
   if (!dashboard) {
     return <div className="cola-espera-card" style={{ textAlign: 'center', color: '#999' }}>Cargando dashboard...</div>;
   }
@@ -163,6 +175,30 @@ const DashboardTab: React.FC<DashboardTabProps> = ({ dashboard }) => {
           </div>
         </div>
       </div>
+
+      {reporte && (
+        <div className="panel">
+          <h3><TrendingUp size={18} /> Reservas últimos 30 días ({reporte.total})</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+            <div>
+              <div className="stat-label">Confirmación</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#16a34a' }}>{reporte.tasa_confirmacion}%</div>
+            </div>
+            <div>
+              <div className="stat-label">Cancelación</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#dc2626' }}>{reporte.tasa_cancelacion}%</div>
+            </div>
+            <div>
+              <div className="stat-label">No-show</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#ea580c' }}>{reporte.tasa_no_show}%</div>
+            </div>
+            <div>
+              <div className="stat-label">Comensales</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{reporte.comensales}</div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

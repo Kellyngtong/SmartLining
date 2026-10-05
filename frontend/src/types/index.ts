@@ -96,6 +96,7 @@ export interface Reserva {
   origen: string;
   estado: string;
   created_at: string;
+  token_publico?: string | null;
 }
 
 export interface WaitlistEntry {
@@ -112,6 +113,25 @@ export interface WaitlistEntry {
   estado: string;
   hora_llegada: string;
   tiempo_estimado_min: number | null;
+}
+
+export interface OcupanteInfo {
+  tipo: string;
+  nombre: string;
+  detalle: string;
+  comensales: number;
+}
+
+export interface ActividadEntry {
+  id_actividad: number;
+  id_cola: number;
+  tipo: string;
+  descripcion: string;
+  id_mesa: number | null;
+  id_turno: number | null;
+  id_reserva: number | null;
+  id_waitlist: number | null;
+  created_at: string;
 }
 
 export interface OpcionMesa {

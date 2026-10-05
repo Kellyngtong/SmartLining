@@ -6,6 +6,7 @@ import { ReservaRepository } from '../repositories/reserva.repository';
 import { puedeAccederACola } from '../utils/tenant-access';
 import { TableAllocationService } from '../services/tableAllocation.service';
 import { MesaRepository } from '../repositories/mesa.repository';
+import { registrarActividad } from '../utils/actividad';
 import sse from '../sse';
 
 const router = Router();
@@ -145,6 +146,15 @@ router.post('/reservas', authMiddleware, async (req: Request, res: Response) => 
       }
     }
 
+    // Sin asignación inmediata: hold provisional para bloquear la ventana (anti-overbooking)
+    if (!asignacion && reserva.estado !== 'CANCELADA') {
+      try {
+        await allocationService.crearHoldReserva(reserva.id_reserva);
+      } catch (e) {
+        logger.warn('Hold reserva failed (non-fatal)', e);
+      }
+    }
+
     try {
       sse.sendSseEvent(id_cola, 'RESERVA_CREADA', { reserva: { id_reserva: reserva.id_reserva } });
     } catch (e) {
@@ -215,6 +225,19 @@ router.put('/reservas/:id', authMiddleware, async (req: Request, res: Response) 
     if (!updated) {
       return res.status(500).json({ success: false, error: 'Error updating reserva' });
     }
+    // Si cambió la ventana, mover el hold provisional a la nueva
+    if ((body.fecha !== undefined || body.hora_inicio !== undefined || body.num_comensales !== undefined)
+      && !['CANCELADA', 'NO_SHOW', 'COMPLETADA'].includes(reserva.estado)) {
+      try {
+        await allocationService.liberarHoldsReserva(id);
+        const holdOk = await allocationService.crearHoldReserva(id);
+        if (!holdOk) {
+          logger.warn(`No hold available after admin edit of reserva ${id}`);
+        }
+      } catch (e) {
+        logger.warn('Failed to move hold after admin edit', e);
+      }
+    }
     return res.json({ success: true, data: updated, message: 'Reserva updated' });
   } catch (error) {
     logger.error('Error updating reserva:', error);
@@ -264,6 +287,69 @@ router.patch('/reservas/:id/estado', authMiddleware, async (req: Request, res: R
         where: { id_reserva: id, estado: { in: ['PENDIENTE', 'ACTIVA'] } },
         data: { estado: 'CANCELADA' },
       });
+    }
+
+    // Al completar, cerrar asignaciones y liberar las mesas (rotación automática)
+    if (estado === 'COMPLETADA') {
+      const activas = await prisma.tableAssignment.findMany({
+        where: { id_reserva: id, estado: { in: ['PENDIENTE', 'ACTIVA'] } },
+        select: { id_asignacion: true, mesa_id: true, grupo_id: true },
+      });
+      if (activas.length > 0) {
+        const mesaIds = new Set<number>(activas.map(a => a.mesa_id));
+        const grupoIds = [...new Set(activas.map(a => a.grupo_id).filter((g): g is number => g != null))];
+        if (grupoIds.length > 0) {
+          const miembros = await prisma.mesaGrupoMesa.findMany({
+            where: { id_grupo: { in: grupoIds } },
+            select: { id_mesa: true },
+          });
+          miembros.forEach(m => mesaIds.add(m.id_mesa));
+        }
+        await prisma.$transaction([
+          prisma.tableAssignment.updateMany({
+            where: { id_asignacion: { in: activas.map(a => a.id_asignacion) } },
+            data: { estado: 'COMPLETADA' },
+          }),
+          prisma.mesa.updateMany({ where: { id_mesa: { in: [...mesaIds] } }, data: { estado: 'LIBRE' } }),
+        ]);
+        try {
+          sse.sendSseEvent(reserva.id_cola, 'MESA_LIBERADA', { mesas: [...mesaIds] });
+        } catch (e) {
+          logger.warn('Failed to send SSE MESA_LIBERADA', e);
+        }
+        try {
+          const liberadas = await prisma.mesa.findMany({
+            where: { id_mesa: { in: [...mesaIds] } },
+            select: { id_mesa: true, numero: true },
+            orderBy: { numero: 'asc' },
+          });
+          const etiqueta = liberadas.map((m) => m.numero).join('+') || [...mesaIds].join('+');
+          registrarActividad({
+            id_cola: reserva.id_cola,
+            tipo: 'MESA_LIBERADA',
+            descripcion: `Mesa ${etiqueta} liberada (reserva de ${reserva.cliente_nombre} completada)`,
+            id_mesa: liberadas[0]?.id_mesa ?? null,
+            id_reserva: id,
+          });
+        } catch (e) {
+          logger.warn('No se pudo registrar actividad de completar reserva:', e);
+        }
+      }
+    }
+
+    // Contadores CRM del cliente
+    if (reserva.id_cliente) {
+      try {
+        if (estado === 'SENTADA') {
+          await prisma.cliente.update({ where: { id_cliente: reserva.id_cliente }, data: { visitas: { increment: 1 } } });
+        } else if (estado === 'CANCELADA') {
+          await prisma.cliente.update({ where: { id_cliente: reserva.id_cliente }, data: { cancelaciones: { increment: 1 } } });
+        } else if (estado === 'NO_SHOW') {
+          await prisma.cliente.update({ where: { id_cliente: reserva.id_cliente }, data: { no_shows: { increment: 1 } } });
+        }
+      } catch (e) {
+        logger.warn('Could not update cliente counters', e);
+      }
     }
 
     // Al hacer check-in, intentar asignar mesa si aún no tiene

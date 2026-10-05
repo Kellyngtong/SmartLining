@@ -31,6 +31,7 @@ import waitlistController from './controllers/waitlist.controller';
 import asignacionController from './controllers/asignacion.controller';
 import salaController from './controllers/sala.controller';
 import publicRestaurantController from './controllers/publicRestaurant.controller';
+import reservaConfigController from './controllers/reservaConfig.controller';
 
 const app = express();
 
@@ -166,6 +167,7 @@ app.use('/api/restaurant', waitlistController);
 app.use('/api/restaurant', asignacionController);
 app.use('/api/restaurant', salaController);
 app.use('/api/restaurant/public', publicRestaurantController);
+app.use('/api/restaurant', reservaConfigController);
 
 // Debug helpers: collect routes including parent mount prefixes
 function collectRoutes(appInstance: any) {

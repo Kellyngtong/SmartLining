@@ -204,7 +204,7 @@ const styles = {
   },
   main: {
     padding: '40px 20px',
-    maxWidth: '1200px',
+    maxWidth: '1400px',
     margin: '0 auto',
   },
   section: {

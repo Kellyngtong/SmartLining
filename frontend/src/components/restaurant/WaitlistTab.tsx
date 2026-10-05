@@ -21,6 +21,7 @@ interface WaitlistTabProps {
 
 const WaitlistTab: React.FC<WaitlistTabProps> = ({ entries, onChangeEstado, onDelete }) => {
   const [creando, setCreando] = useState(false);
+  const [verTodas, setVerTodas] = useState(false);
   const [form, setForm] = useState({
     cliente_nombre: '',
     cliente_telefono: '',
@@ -31,6 +32,16 @@ const WaitlistTab: React.FC<WaitlistTabProps> = ({ entries, onChangeEstado, onDe
   });
 
   const colaId = useRestaurantStore.getState().colaId;
+
+  const cambiarFiltro = (todas: boolean) => {
+    setVerTodas(todas);
+    const st = useRestaurantStore.getState();
+    st.setWaitlistFiltro(todas ? {} : { activas: true });
+    if (st.colaId) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      st.fetchWaitlist(st.colaId, todas ? {} : { activas: true });
+    }
+  };
 
   const handleCrear = async () => {
     if (!form.cliente_nombre.trim()) return;
@@ -50,7 +61,6 @@ const WaitlistTab: React.FC<WaitlistTabProps> = ({ entries, onChangeEstado, onDe
   };
 
   const ordenadas = [...entries].sort((a, b) => (b.prioridad - a.prioridad) || new Date(a.hora_llegada).getTime() - new Date(b.hora_llegada).getTime());
-  const enEspera = entries.filter(e => e.estado === 'ESPERANDO' || e.estado === 'NOTIFICADO').length;
 
   const fmtLlegada = (iso: string) => {
     const d = new Date(iso);
@@ -59,14 +69,22 @@ const WaitlistTab: React.FC<WaitlistTabProps> = ({ entries, onChangeEstado, onDe
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
         <button className="btn-restaurant" onClick={() => setCreando(c => !c)}>
           <Plus size={16} style={{ marginRight: 6 }} /> Añadir a la cola
         </button>
-        <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>
-          {enEspera} en espera{entries.length !== enEspera ? ` · ${entries.length} en total hoy` : ''}
+        <div className="vista-toggle" style={{ marginBottom: 0 }}>
+          <button className={!verTodas ? 'active' : ''} onClick={() => cambiarFiltro(false)}>En espera</button>
+          <button className={verTodas ? 'active' : ''} onClick={() => cambiarFiltro(true)}>Todas</button>
+        </div>
+        <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem', marginLeft: 'auto' }}>
+          {entries.length} grupo(s)
         </span>
       </div>
+      <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', margin: '0 0 16px' }}>
+        Lista manual con prioridad y preferencias. Los grupos que entran por QR aparecen en
+        la pestaña Sala → Cola de comensales.
+      </p>
 
       {creando && (
         <div className="panel" style={{ marginBottom: 16 }}>
@@ -101,7 +119,9 @@ const WaitlistTab: React.FC<WaitlistTabProps> = ({ entries, onChangeEstado, onDe
 
       {ordenadas.length === 0 ? (
         <div className="cola-espera-card" style={{ textAlign: 'center', color: '#999' }}>
-          No hay grupos en la cola de espera
+          {verTodas
+            ? 'No hay registros en la lista de espera'
+            : 'No hay grupos esperando ahora. Usa «Todas» para ver el historial o «Añadir a la cola» para registrar uno.'}
         </div>
       ) : (
         <div className="cola-espera-card">

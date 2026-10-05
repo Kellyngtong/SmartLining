@@ -95,6 +95,7 @@ export interface RawMesa {
   capacidad_extra?: number;
   estado: string;
   id_cola: number;
+  id_zona?: number | null;
   capacidad_efectiva?: number;
   grupo?: { id_grupo: number; numero: number; capacidad_total: number } | null;
   fecha_creacion: string;
@@ -332,6 +333,7 @@ export const MesaMapper = {
       capacidad_extra: raw.capacidad_extra,
       estado: raw.estado,
       id_cola: raw.id_cola,
+      id_zona: raw.id_zona ?? null,
       capacidad_efectiva: raw.capacidad_efectiva,
       grupo: raw.grupo,
       fecha_creacion: raw.fecha_creacion,

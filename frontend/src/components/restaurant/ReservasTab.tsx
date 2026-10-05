@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CalendarDays, Plus, Phone, Trash2, Users, Search } from 'lucide-react';
+import { CalendarDays, Plus, Phone, Trash2, Users, Search, Copy, History } from 'lucide-react';
 import { Reserva } from '../../types';
 import { apiClient } from '../../services/api';
 import { useRestaurantStore } from '../../store/restaurant.store';
@@ -54,6 +54,8 @@ const ReservasTab: React.FC<ReservasTabProps> = ({ reservas, fecha, zonas, onFec
   const [checkForm, setCheckForm] = useState({ fecha: fecha || hoyLocal(), hora: '20:00', comensales: 2 });
   const [disponibilidad, setDisponibilidad] = useState<{ hayDisponibilidad: boolean; opciones: any[]; hora_inicio: string; hora_fin_prevista: string } | null>(null);
   const [colapsado, setColapsado] = useState<string | null>(null);
+  const [historial, setHistorial] = useState<Record<number, any>>({});
+  const [cargandoHistorial, setCargandoHistorial] = useState<number | null>(null);
 
   const colaId = useRestaurantStore.getState().colaId;
 
@@ -103,6 +105,26 @@ const ReservasTab: React.FC<ReservasTabProps> = ({ reservas, fecha, zonas, onFec
     return zonas.find(z => z.id_zona === id)?.nombre || `Zona ${id}`;
   };
 
+  const copiarEnlace = (r: Reserva) => {
+    if (!r.token_publico) return;
+    navigator.clipboard.writeText(`${window.location.origin}/restaurante/mi-reserva/${r.token_publico}`);
+    alert('Enlace de autogestión copiado. Compártelo con el cliente por WhatsApp o SMS.');
+  };
+
+  const cargarHistorial = async (r: Reserva) => {
+    if (!r.cliente_telefono || !colaId) return;
+    if (historial[r.id_reserva]) return;
+    setCargandoHistorial(r.id_reserva);
+    try {
+      const res = await apiClient.getClienteHistorial(colaId, r.cliente_telefono);
+      setHistorial(h => ({ ...h, [r.id_reserva]: res.data }));
+    } catch (e) {
+      // sin historial
+    } finally {
+      setCargandoHistorial(null);
+    }
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
@@ -125,6 +147,9 @@ const ReservasTab: React.FC<ReservasTabProps> = ({ reservas, fecha, zonas, onFec
           {ordenadas.length} reserva(s)
         </span>
       </div>
+      <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', margin: '0 0 16px' }}>
+        Gestión completa: crear, editar, filtrar y consultar disponibilidad. Para la operativa del día por mesa, usa Agenda.
+      </p>
 
       {creando && (
         <div className="panel" style={{ marginBottom: 16 }}>
@@ -258,6 +283,11 @@ const ReservasTab: React.FC<ReservasTabProps> = ({ reservas, fecha, zonas, onFec
                   <button className="btn-ghost-rest" style={{ color: '#64748b' }} onClick={() => setColapsado(colapsado === String(r.id_reserva) ? null : String(r.id_reserva))}>
                     Detalles
                   </button>
+                  {r.token_publico && (
+                    <button className="btn-ghost-rest" style={{ color: '#2563eb' }} onClick={() => copiarEnlace(r)} title="Copiar enlace de autogestión para el cliente">
+                      <Copy size={14} />
+                    </button>
+                  )}
                   <button className="btn-ghost-rest" style={{ color: '#b91c1c' }} onClick={() => onDelete(r)}>
                     <Trash2 size={14} />
                   </button>
@@ -266,6 +296,27 @@ const ReservasTab: React.FC<ReservasTabProps> = ({ reservas, fecha, zonas, onFec
                   <div style={{ width: '100%', marginTop: 8, padding: '10px 12px', background: '#fafafa', borderRadius: 8, fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>
                     {r.notas ? `Notas: ${r.notas} · ` : ''}Registrada el {fmtFecha(r.created_at)}{r.cliente_email ? ` · ${r.cliente_email}` : ''}
                     {r.preferencia_mesa ? ` · Mesa preferida: ${r.preferencia_mesa}` : ''}
+                    {r.cliente_telefono && (
+                      <div style={{ marginTop: 8 }}>
+                        <button
+                          className="btn-ghost-rest"
+                          style={{ fontSize: '0.8rem', padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                          onClick={() => cargarHistorial(r)}
+                          disabled={cargandoHistorial === r.id_reserva}
+                        >
+                          <History size={13} /> {cargandoHistorial === r.id_reserva ? 'Cargando…' : 'Ver historial del cliente'}
+                        </button>
+                        {historial[r.id_reserva] && (
+                          <div style={{ marginTop: 8, padding: '8px 10px', background: '#fff', border: '1px solid var(--color-border)', borderRadius: 8 }}>
+                            <strong>{historial[r.id_reserva].total} reserva(s)</strong>
+                            {' · '}No-shows: <strong style={{ color: (historial[r.id_reserva].tasa_no_show ?? 0) > 20 ? '#dc2626' : '#15803d' }}>{historial[r.id_reserva].tasa_no_show}%</strong>
+                            {Object.entries(historial[r.id_reserva].por_estado || {}).map(([e, n]) => (
+                              <span key={e} style={{ marginLeft: 8 }}>{e}: {n as number}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

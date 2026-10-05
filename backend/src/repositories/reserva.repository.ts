@@ -16,6 +16,7 @@ export interface CreateReservaDTO {
   preferencia_zona?: number | null;
   preferencia_mesa?: number | null;
   origen?: 'TELEFONO' | 'WEB' | 'APP' | 'WALK_IN' | 'WHATSAPP' | 'OTRO';
+  token_publico?: string | null;
 }
 
 export interface UpdateReservaDTO {
@@ -97,6 +98,7 @@ export class ReservaRepository extends BaseRepository<Reserva, CreateReservaDTO,
         preferencia_zona: data.preferencia_zona ?? null,
         preferencia_mesa: data.preferencia_mesa ?? null,
         origen: (data.origen as any) ?? 'TELEFONO',
+        token_publico: data.token_publico ?? null,
       },
     });
   }

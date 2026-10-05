@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { Plus, Pencil, Trash2, RefreshCw, AlertTriangle, Users, Clock, Link2, LayoutGrid, CalendarDays, ListOrdered, Map, BarChart3 } from 'lucide-react';
+import { Plus, Pencil, Trash2, RefreshCw, AlertTriangle, Users, Clock, Link2, LayoutGrid, CalendarDays, ListOrdered, Map, BarChart3, CalendarClock, Settings, History } from 'lucide-react';
 import MesaGrid from '../components/restaurant/MesaGrid';
 import VistaToggle from '../components/restaurant/VistaToggle';
 import StatsMesasWidget from '../components/restaurant/StatsMesasWidget';
@@ -13,7 +13,10 @@ import ReservasTab from '../components/restaurant/ReservasTab';
 import WaitlistTab from '../components/restaurant/WaitlistTab';
 import ZonasTab from '../components/restaurant/ZonasTab';
 import DashboardTab from '../components/restaurant/DashboardTab';
-import { useRestaurantStore, TurnoEspera } from '../store/restaurant.store';
+import AgendaTab from '../components/restaurant/AgendaTab';
+import AjustesTab from '../components/restaurant/AjustesTab';
+import ActividadTab from '../components/restaurant/ActividadTab';
+import { useRestaurantStore, TurnoEspera, SugerenciaMesa, LiberarMesaResult } from '../store/restaurant.store';
 import { Mesa } from '../models';
 import { Reserva, WaitlistEntry } from '../types';
 import { agruparMesasJuntadas } from '../models/mesaGrupos';
@@ -24,7 +27,7 @@ interface EstadoEdicion {
   mesa: Mesa;
 }
 
-type TabId = 'sala' | 'reservas' | 'waitlist' | 'zonas' | 'dashboard';
+type TabId = 'sala' | 'agenda' | 'reservas' | 'waitlist' | 'zonas' | 'dashboard' | 'ajustes' | 'actividad';
 
 const hoyStr = () => {
   const d = new Date();
@@ -49,6 +52,8 @@ const RestaurantAdminPage: React.FC = () => {
     reservas,
     waitlist,
     dashboard,
+    ocupacion,
+    actividad,
     crearMesa,
     editarMesa,
     borrarMesa,
@@ -72,6 +77,7 @@ const RestaurantAdminPage: React.FC = () => {
 
   const [tab, setTab] = useState<TabId>('sala');
   const [vista, setVista] = useState<'grid' | 'lista'>('grid');
+  const [filtroZonaMesa, setFiltroZonaMesa] = useState<number | 'todas'>('todas');
   const [crear, setCrear] = useState(false);
   const [editando, setEditando] = useState<EstadoEdicion | null>(null);
   const [asignando, setAsignando] = useState<TurnoEspera | null>(null);
@@ -79,6 +85,7 @@ const RestaurantAdminPage: React.FC = () => {
   const [juntando, setJuntando] = useState(false);
   const [juntarMesaId, setJuntarMesaId] = useState<number | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
+  const [sugerencia, setSugerencia] = useState<(SugerenciaMesa & { motivo: string | null }) | null>(null);
   const [statsRest, setStatsRest] = useState<any>(null);
   const [fechaReservas, setFechaReservas] = useState<string>(hoyStr());
 
@@ -150,6 +157,12 @@ const RestaurantAdminPage: React.FC = () => {
   const mesasLibres = mesas.filter(m => m.isLibre());
   const gruposDisponibles = agruparMesasJuntadas(mesas).filter(g => g.disponible);
 
+  const filtroZonaValido = filtroZonaMesa === 'todas' || zonas.some(z => z.id_zona === filtroZonaMesa);
+  const mesasFiltradas = filtroZonaValido && filtroZonaMesa !== 'todas'
+    ? mesas.filter(m => m.id_zona === filtroZonaMesa)
+    : mesas;
+  const contarZona = (idZona: number | null) => mesas.filter(m => (m.id_zona ?? null) === idZona).length;
+
   const turnosGranGrupo = turnosEspera.filter(
     t => t.categoria === 'GRAN_TAMANO' || (stats && t.num_comensales != null && t.num_comensales > stats.maxCapacidadRestaurante)
   );
@@ -174,14 +187,75 @@ const RestaurantAdminPage: React.FC = () => {
   };
 
   const doLiberar = async (mesa: Mesa, restablecer: boolean) => {
-    const ok = await liberarMesa(mesa.id_mesa, restablecer);
-    if (ok) {
-      setMensaje(`Mesa ${mesa.numero} liberada${restablecer ? '' : ' (mantuvo suplemento)'}`);
+    // Nombres capturados antes del refetch que hace liberarMesa
+    const turnoMatch = turnosEspera;
+    const esperaWl = waitlist;
+    const res: LiberarMesaResult | null = await liberarMesa(mesa.id_mesa, restablecer);
+    if (res) {
+      let extra = '';
+      if (res.match) {
+        const t = turnoMatch.find(x => x.id_turno === res.match!.turnoId);
+        extra = t
+          ? ` y asignada al turno ${t.numero_turno}${t.cliente_nombre ? ` (${t.cliente_nombre}, ${t.num_comensales} pers.)` : ''}`
+          : ' y reasignada automáticamente';
+      } else if (res.matchWaitlist) {
+        const w = res.matchWaitlist.id_waitlist != null
+          ? esperaWl.find(x => x.id_waitlist === res.matchWaitlist!.id_waitlist)
+          : undefined;
+        extra = w ? ` y asignada a ${w.cliente_nombre} (${w.num_comensales} pers.)` : ' y asignada a la cola de espera';
+      }
+      setMensaje(`Mesa ${mesa.numero} liberada${restablecer ? '' : ' (mantuvo suplemento)'}${extra}`);
+      if (!res.match && !res.matchWaitlist && res.sugerencia) {
+        setSugerencia({ ...res.sugerencia, motivo: res.matchOmitido ?? null });
+      } else {
+        setSugerencia(null);
+      }
     } else {
       setMensaje(error || 'No se pudo liberar');
     }
     setLiberando(null);
   };
+
+  const atenderSugerenciaTurno = (s: SugerenciaMesa) => {
+    const t = useRestaurantStore.getState().turnosEspera.find(x => x.id_turno === s.id);
+    if (t) {
+      setAsignando(t);
+      setSugerencia(null);
+    } else {
+      setMensaje('Ese turno ya no está en espera');
+      setSugerencia(null);
+    }
+  };
+
+  const atenderSugerenciaWaitlist = async (s: SugerenciaMesa) => {
+    if (isNaN(id)) return;
+    try {
+      const res = await apiClient.asignarMesaSala({
+        id_cola: id,
+        comensales: s.comensales,
+        tipo_origen: 'WAITLIST',
+        id_waitlist: s.id,
+      });
+      if (res.success) {
+        setMensaje(`Mesa asignada a ${s.nombre} (${s.comensales} pers.)`);
+        setSugerencia(null);
+        const st = useRestaurantStore.getState();
+        await st.fetchWaitlist(id);
+        await st.fetchCola(id);
+        await st.fetchDashboard(id);
+      } else {
+        setMensaje('No se pudo asignar automáticamente');
+      }
+    } catch (e) {
+      setMensaje('No se pudo asignar automáticamente');
+    }
+  };
+
+  const maxEspera = Math.max(
+    0,
+    ...turnosEspera.map(t => t.num_comensales ?? 0),
+    ...waitlist.filter(w => w.estado === 'ESPERANDO' || w.estado === 'NOTIFICADO').map(w => w.num_comensales ?? 0)
+  );
 
   const handleJuntar = async (mesaIds: number[]) => {
     const ok = await juntarMesas(mesaIds);
@@ -208,12 +282,50 @@ const RestaurantAdminPage: React.FC = () => {
     return ok;
   };
 
+  const pendientes = reservas.filter(r => r.estado === 'PENDIENTE').length;
+  const enEsperaWl = waitlist.filter(w => w.estado === 'ESPERANDO' || w.estado === 'NOTIFICADO').length;
+
+  // Aviso sonoro al llegar una reserva nueva (el navegador lo permite tras la primera interacción)
+  useEffect(() => {
+    if (isNaN(id)) return;
+    const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+    let es: EventSource | null = null;
+    try {
+      es = new EventSource(`${API_BASE_URL}/events?queueId=${id}`);
+      es.addEventListener('RESERVA_CREADA', () => {
+        try {
+          const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+          const ctx = new Ctx();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.value = 880;
+          gain.gain.setValueAtTime(0.15, ctx.currentTime);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.25);
+          setTimeout(() => ctx.close(), 500);
+        } catch (e) {
+          // audio no disponible: el badge visual sigue funcionando
+        }
+      });
+    } catch (e) {
+      // SSE no disponible
+    }
+    return () => {
+      if (es) es.close();
+    };
+  }, [id]);
+
   const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
     { id: 'sala', label: 'Sala', icon: <LayoutGrid size={16} /> },
-    { id: 'reservas', label: 'Reservas', icon: <CalendarDays size={16} /> },
-    { id: 'waitlist', label: 'Cola espera', icon: <ListOrdered size={16} /> },
+    { id: 'agenda', label: 'Agenda', icon: <CalendarClock size={16} /> },
+    { id: 'reservas', label: `Reservas${pendientes > 0 ? ` (${pendientes})` : ''}`, icon: <CalendarDays size={16} /> },
+    { id: 'waitlist', label: `Cola espera${enEsperaWl > 0 ? ` (${enEsperaWl})` : ''}`, icon: <ListOrdered size={16} /> },
     { id: 'zonas', label: 'Zonas', icon: <Map size={16} /> },
     { id: 'dashboard', label: 'Dashboard', icon: <BarChart3 size={16} /> },
+    { id: 'ajustes', label: 'Ajustes', icon: <Settings size={16} /> },
+    { id: 'actividad', label: 'Actividad', icon: <History size={16} /> },
   ];
 
   return (
@@ -265,6 +377,41 @@ const RestaurantAdminPage: React.FC = () => {
       {error && (
         <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', color: '#b91c1c', borderRadius: 8, padding: '10px 16px', marginBottom: 16 }}>
           {error}
+        </div>
+      )}
+
+      {sugerencia && (
+        <div className="alertas-gran-grupo" style={{ background: '#eff6ff', borderColor: '#93c5fd' }}>
+          <div className="alertas-gran-grupo-header" style={{ color: '#1d4ed8' }}>
+            <Users size={20} />
+            <span>
+              {sugerencia.motivo === 'GRAN_TAMANO' && 'Un grupo grande sigue en espera (supera una mesa): '}
+              {sugerencia.motivo === 'GRUPO_GRANDE' && 'Un grupo en espera no cabe en la mesa liberada: '}
+              {sugerencia.motivo === 'SIN_MESA_COMPATIBLE' && 'Hay un grupo compatible en espera: '}
+              {sugerencia.motivo === 'ERROR_MATCH' && 'No se pudo asignar automáticamente (error interno): '}
+              <strong>{sugerencia.nombre} ({sugerencia.comensales} pers.)</strong>
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+            {sugerencia.tipo === 'TURNO' ? (
+              <button className="btn-restaurant yellow" style={{ padding: '8px 14px' }} onClick={() => atenderSugerenciaTurno(sugerencia)}>
+                Asignar ahora
+              </button>
+            ) : sugerencia.motivo === 'SIN_MESA_COMPATIBLE' ? (
+              <button className="btn-restaurant yellow" style={{ padding: '8px 14px' }} onClick={() => atenderSugerenciaWaitlist(sugerencia)}>
+                Asignar ahora
+              </button>
+            ) : null}
+            {(sugerencia.motivo === 'GRAN_TAMANO' || sugerencia.motivo === 'GRUPO_GRANDE') && (
+              <button
+                className="btn-ghost-rest"
+                onClick={() => { setJuntando(true); setJuntarMesaId(null); setSugerencia(null); }}
+              >
+                Unir mesas
+              </button>
+            )}
+            <button className="btn-ghost-rest" onClick={() => setSugerencia(null)}>Descartar</button>
+          </div>
         </div>
       )}
 
@@ -342,6 +489,26 @@ const RestaurantAdminPage: React.FC = () => {
           <div className="panel">
             <h3>Mesas del restaurante ({mesas.length})</h3>
 
+            {zonas.length > 0 && (
+              <div className="vista-toggle" role="tablist" aria-label="Filtrar mesas por zona" style={{ marginBottom: 16 }}>
+                <button
+                  className={filtroZonaMesa === 'todas' ? 'active' : ''}
+                  onClick={() => setFiltroZonaMesa('todas')}
+                >
+                  Todos ({mesas.length})
+                </button>
+                {zonas.map(z => (
+                  <button
+                    key={z.id_zona}
+                    className={filtroZonaMesa === z.id_zona ? 'active' : ''}
+                    onClick={() => setFiltroZonaMesa(z.id_zona)}
+                  >
+                    {z.nombre} ({contarZona(z.id_zona)})
+                  </button>
+                ))}
+              </div>
+            )}
+
             {crear && (
               <div style={{ background: '#fafafa', border: '1px solid var(--color-border)', borderRadius: 10, padding: 16, marginBottom: 16 }}>
                 <h4 style={{ marginBottom: 10 }}>Nueva mesa</h4>
@@ -365,7 +532,7 @@ const RestaurantAdminPage: React.FC = () => {
 
             {vista === 'lista' ? (
               <div className="mesa-list">
-                {mesas.map(mesa => (
+                {mesasFiltradas.map(mesa => (
                   <div key={mesa.id_mesa} className={`mesa-list-item ${mesa.estado.toLowerCase()}`}>
                     <div className="mesa-list-info">
                       <span className="mesa-list-numero">{mesa.numero}</span>
@@ -384,14 +551,28 @@ const RestaurantAdminPage: React.FC = () => {
               </div>
             ) : (
               <MesaGrid
-                mesas={mesas}
+                mesas={mesasFiltradas}
                 onLiberar={mesa => mesa.isOcupada() && handleLiberarClick(mesa)}
                 onJuntar={mesa => { setJuntarMesaId(mesa.id_mesa); setJuntando(true); }}
                 onEliminar={mesa => handleBorrarMesa(mesa)}
+                ocupacion={ocupacion}
               />
             )}
           </div>
         </>
+      )}
+
+      {tab === 'agenda' && (
+        <AgendaTab
+          reservas={reservas}
+          mesas={mesas}
+          fecha={fechaReservas}
+          onFechaChange={handleFechaReservas}
+          onChangeEstado={async (rid, estado) => {
+            const ok = await cambiarEstadoReserva(rid, estado);
+            setMensaje(ok ? `Reserva actualizada a ${estado}` : error || 'No se pudo actualizar');
+          }}
+        />
       )}
 
       {tab === 'reservas' && (
@@ -439,7 +620,11 @@ const RestaurantAdminPage: React.FC = () => {
         />
       )}
 
-      {tab === 'dashboard' && <DashboardTab dashboard={dashboard} />}
+      {tab === 'dashboard' && <DashboardTab dashboard={dashboard} colaId={isNaN(id) ? undefined : id} />}
+
+      {tab === 'ajustes' && !isNaN(id) && <AjustesTab colaId={id} />}
+
+      {tab === 'actividad' && <ActividadTab actividad={actividad} />}
 
       {asignando && (
         <AsignarMesaModal
@@ -454,6 +639,7 @@ const RestaurantAdminPage: React.FC = () => {
       {liberando && (
         <LiberarMesaModal
           mesa={liberando}
+          maxEspera={maxEspera > 0 ? maxEspera : null}
           onLiberar={(restablecer) => doLiberar(liberando, restablecer)}
           onClose={() => setLiberando(null)}
         />

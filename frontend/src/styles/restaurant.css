@@ -3,7 +3,7 @@
    ================================ */
 
 .restaurant-container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 24px 20px;
 }
@@ -86,7 +86,7 @@
    ================================ */
 .mesa-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
   gap: 16px;
 }
 
@@ -96,7 +96,9 @@
   background: #fff;
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-soft);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
   cursor: pointer;
   position: relative;
 }
@@ -143,6 +145,23 @@
   font-size: 0.75rem;
   font-weight: 700;
   margin-top: 6px;
+}
+.ocupante-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-top: 6px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .btn-juntar-card {
   background: #ede9fe;
@@ -213,7 +232,6 @@
 
 .mesa-status {
   text-align: center;
-  margin-top: 8px;
   padding: 4px 10px;
   border-radius: 20px;
   font-size: 0.75rem;
@@ -253,7 +271,9 @@
   border-left: 5px solid #ddd;
   border-radius: 10px;
   padding: 14px 16px;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .mesa-list-item:hover {
@@ -491,7 +511,9 @@
   color: var(--color-text-secondary);
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
 }
 
 .rest-tab:hover {

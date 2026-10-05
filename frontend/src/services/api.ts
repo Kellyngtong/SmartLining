@@ -364,7 +364,8 @@ class ApiClient {
   }
 
   async createZona(data: { id_cola: number; nombre: string; tipo?: string; orden?: number; activa?: boolean }) {
-    return this.post('/restaurant/zonas', data);
+    const { id_cola, ...resto } = data;
+    return this.post(`/restaurant/zonas/${id_cola}`, resto);
   }
 
   async updateZona(id: number, data: { nombre?: string; tipo?: string; orden?: number; activa?: boolean }) {
@@ -462,6 +463,54 @@ class ApiClient {
 
   async createPublicReserva(data: unknown) {
     return this.post('/restaurant/public/reservas', data);
+  }
+
+  async getPublicSlots(colaId: number, params: { fecha: string; comensales: number }) {
+    const response = await this.instance.get(`/restaurant/public/slots/${colaId}`, { params });
+    return response.data;
+  }
+
+  async getPublicMiReserva(token: string) {
+    return this.get(`/restaurant/public/mis-reservas/${token}`);
+  }
+
+  async confirmarMiReserva(token: string) {
+    return this.post(`/restaurant/public/mis-reservas/${token}/confirmar`);
+  }
+
+  async cancelarMiReserva(token: string) {
+    return this.post(`/restaurant/public/mis-reservas/${token}/cancelar`);
+  }
+
+  async updateMiReserva(token: string, data: unknown) {
+    return this.put(`/restaurant/public/mis-reservas/${token}`, data);
+  }
+
+  // ========================================
+  // Configuración de reservas + CRM + reportes (auth)
+  // ========================================
+
+  async getReservaConfig(colaId: number) {
+    return this.get(`/restaurant/config/${colaId}`);
+  }
+
+  async updateReservaConfig(colaId: number, data: unknown) {
+    return this.put(`/restaurant/config/${colaId}`, data);
+  }
+
+  async getClienteHistorial(colaId: number, telefono: string) {
+    const response = await this.instance.get('/restaurant/clientes-historial', { params: { colaId, telefono } });
+    return response.data;
+  }
+
+  async getReporteReservas(colaId: number, params?: { desde?: string; hasta?: string }) {
+    const response = await this.instance.get(`/restaurant/reporte-reservas/${colaId}`, { params });
+    return response.data;
+  }
+
+  async getActividad(colaId: number, limit = 50) {
+    const response = await this.instance.get(`/restaurant/actividad/${colaId}`, { params: { limit } });
+    return response.data;
   }
 
   // Health check

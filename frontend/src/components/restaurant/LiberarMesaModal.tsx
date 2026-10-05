@@ -5,11 +5,12 @@ import '../../styles/restaurant.css';
 
 interface LiberarMesaModalProps {
   mesa: Mesa;
+  maxEspera?: number | null;
   onLiberar: (restablecer: boolean) => void;
   onClose: () => void;
 }
 
-const LiberarMesaModal: React.FC<LiberarMesaModalProps> = ({ mesa, onLiberar, onClose }) => {
+const LiberarMesaModal: React.FC<LiberarMesaModalProps> = ({ mesa, maxEspera, onLiberar, onClose }) => {
   const tieneSillas = mesa.capacidad_extra > 0;
   const grupo = mesa.grupo;
   const cardRef = useRef<HTMLDivElement>(null);
@@ -51,6 +52,14 @@ const LiberarMesaModal: React.FC<LiberarMesaModalProps> = ({ mesa, onLiberar, on
         <p style={{ color: '#444', marginBottom: 18 }}>
           ¿Restablecer la mesa a su estado normal al liberarla?
         </p>
+
+        {!grupo && tieneSillas && maxEspera != null && maxEspera > mesa.capacidad
+          && (mesa.capacidad + mesa.capacidad_extra) >= maxEspera && (
+          <div role="alert" style={{ background: '#fffbeb', border: '1px solid #fcd34d', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: '0.9rem', color: '#92400e' }}>
+            Ojo: hay un grupo de <strong>{maxEspera}</strong> en espera. Si restableces, la mesa queda en {mesa.capacidad} y ya no cabrá.
+            Usa «Mantener suplemento» para conservar la capacidad.
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: 12, flexDirection: 'column', marginBottom: 8 }}>
           <button

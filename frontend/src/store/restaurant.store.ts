@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { Mesa } from '../models';
 import { MesaMapper } from '../models/mappers';
 import { apiClient } from '../services/api';
-import { Zona, Reserva, WaitlistEntry, MesaZona, DashboardSala } from '../types';
+import { Zona, Reserva, WaitlistEntry, MesaZona, DashboardSala, OcupanteInfo, ActividadEntry } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -34,6 +34,22 @@ export interface RestaurantStats {
   maxCapacidadRestaurante: number;
 }
 
+export interface SugerenciaMesa {
+  tipo: 'TURNO' | 'WAITLIST';
+  id: number;
+  nombre: string;
+  comensales: number;
+}
+
+export interface LiberarMesaResult {
+  mesa?: { id_mesa: number; estado: string };
+  grupoDisuelto?: boolean;
+  match?: { turnoId: number; mesa: { id_mesa: number; numero: number } } | null;
+  matchWaitlist?: { asignacionId: number; id_waitlist?: number | null; mesa: { id_mesa: number; numero: number } } | null;
+  matchOmitido?: string | null;
+  sugerencia?: SugerenciaMesa | null;
+}
+
 interface RestaurantStore {
   mesas: Mesa[];
   turnosEspera: TurnoEspera[];
@@ -47,22 +63,27 @@ interface RestaurantStore {
   mesasSinZona: MesaZona[];
   reservas: Reserva[];
   waitlist: WaitlistEntry[];
+  waitlistFiltro: { estado?: string; activas?: boolean };
+  setWaitlistFiltro: (filtro: { estado?: string; activas?: boolean }) => void;
   dashboard: DashboardSala | null;
   reservasFecha: string;
   salaLoading: boolean;
+  ocupacion: Record<number, OcupanteInfo>;
+  actividad: ActividadEntry[];
 
   fetchCola: (colaId: number) => Promise<void>;
   fetchSala: (colaId: number, fecha?: string) => Promise<void>;
+  fetchActividad: (colaId: number) => Promise<void>;
   fetchZonas: (colaId: number) => Promise<void>;
   fetchReservas: (colaId: number, fecha?: string) => Promise<void>;
-  fetchWaitlist: (colaId: number) => Promise<void>;
+  fetchWaitlist: (colaId: number, opts?: { estado?: string; activas?: boolean }) => Promise<void>;
   fetchDashboard: (colaId: number) => Promise<void>;
   initSse: (colaId: number) => () => void;
   crearMesa: (data: { numero: number; capacidad: number }) => Promise<boolean>;
   editarMesa: (id: number, data: { numero?: number; capacidad?: number; estado?: string }) => Promise<boolean>;
   borrarMesa: (id: number) => Promise<boolean>;
   asignarManual: (mesaId: number, turnoId: number) => Promise<boolean>;
-  liberarMesa: (mesaId: number, restablecer?: boolean) => Promise<boolean>;
+  liberarMesa: (mesaId: number, restablecer?: boolean) => Promise<LiberarMesaResult | null>;
   juntarMesas: (mesaIds: number[]) => Promise<boolean>;
   separarMesa: (mesaId: number) => Promise<boolean>;
   anadirSilla: (mesaId: number, cantidad?: number) => Promise<boolean>;
@@ -95,9 +116,13 @@ export const useRestaurantStore = create<RestaurantStore>(set => ({
   mesasSinZona: [],
   reservas: [],
   waitlist: [],
+  waitlistFiltro: { activas: true },
+  setWaitlistFiltro: (filtro) => set({ waitlistFiltro: filtro }),
   dashboard: null,
   reservasFecha: '',
   salaLoading: false,
+  ocupacion: {},
+  actividad: [],
 
   fetchCola: async (colaId: number) => {
     set({ isLoading: true, error: null, colaId });
@@ -110,6 +135,7 @@ export const useRestaurantStore = create<RestaurantStore>(set => ({
           turnosEspera: data.turnosEspera || [],
           turnosAtencion: data.turnosAtencion || [],
           stats: data.stats || null,
+          ocupacion: data.ocupacion || {},
           isLoading: false,
         });
       } else {
@@ -147,9 +173,10 @@ export const useRestaurantStore = create<RestaurantStore>(set => ({
     }
   },
 
-  fetchWaitlist: async (colaId: number) => {
+  fetchWaitlist: async (colaId: number, opts?: { estado?: string; activas?: boolean }) => {
     try {
-      const response = await apiClient.getWaitlist(colaId, { activas: true });
+      const filtro = opts ?? useRestaurantStore.getState().waitlistFiltro;
+      const response = await apiClient.getWaitlist(colaId, filtro);
       const data = response.data as any;
       if (data) set({ waitlist: data || [] });
     } catch (error: unknown) {
@@ -171,14 +198,27 @@ export const useRestaurantStore = create<RestaurantStore>(set => ({
 
   fetchSala: async (colaId: number, fecha?: string) => {
     set({ salaLoading: true, colaId });
+    const filtroWl = useRestaurantStore.getState().waitlistFiltro;
     await Promise.all([
       useRestaurantStore.getState().fetchCola(colaId),
       useRestaurantStore.getState().fetchZonas(colaId),
       useRestaurantStore.getState().fetchReservas(colaId, fecha),
-      useRestaurantStore.getState().fetchWaitlist(colaId),
+      useRestaurantStore.getState().fetchWaitlist(colaId, filtroWl),
       useRestaurantStore.getState().fetchDashboard(colaId),
+      useRestaurantStore.getState().fetchActividad(colaId),
     ]);
     set({ salaLoading: false });
+  },
+
+  fetchActividad: async (colaId: number) => {
+    try {
+      const response = await apiClient.getActividad(colaId, 50);
+      const data = response.data as any;
+      if (data) set({ actividad: data || [] });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch actividad';
+      set({ error: message });
+    }
   },
 
   initSse: (colaId: number) => {
@@ -290,13 +330,13 @@ export const useRestaurantStore = create<RestaurantStore>(set => ({
         if (colaId) {
           await useRestaurantStore.getState().fetchCola(colaId);
         }
-        return true;
+        return (response.data as LiberarMesaResult) ?? null;
       }
-      return false;
+      return null;
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Failed to free mesa';
       set({ error: message });
-      return false;
+      return null;
     }
   },
 

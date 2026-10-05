@@ -129,6 +129,8 @@ model Cola {
   reservas    Reserva[]
   waitlist    WaitlistEntry[]
   asignaciones TableAssignment[]
+  reservaConfig ReservaConfig?
+  actividad ActividadLog[]
 
   @@map("cola")
 }
@@ -373,6 +375,7 @@ model Reserva {
   preferencia_zona Int?          @db.Int // opcional: id_zona preferida
   preferencia_mesa Int?          @db.Int // opcional: id_mesa preferida
   origen           OrigenReserva @default(TELEFONO)
+  token_publico    String?       @unique @db.VarChar(64) // autogestión del cliente sin login
   created_at       DateTime      @default(now())
   updated_at       DateTime      @updatedAt
 
@@ -407,6 +410,28 @@ enum OrigenReserva {
   OTRO
 
   @@map("origen_reserva")
+}
+
+// ========================
+// CONFIGURACIÓN DE RESERVAS POR RESTAURANTE
+// ========================
+// Reglas del servicio de reservas online: antelación, slots, topes.
+// Si no hay fila para una cola, se aplican los valores por defecto en código.
+model ReservaConfig {
+  id_config                Int      @id @default(autoincrement())
+  id_cola                  Int      @unique
+  antelacion_min_min       Int      @default(60) // minutos mínimos antes del slot
+  antelacion_max_dias      Int      @default(60) // días máximos hacia el futuro
+  slot_min                 Int      @default(30) // intervalo de slots en minutos
+  max_comensales_online    Int      @default(20) // tope de comensales por reserva web
+  max_reservas_por_telefono Int     @default(3) // reservas activas por teléfono
+  modificacion_limite_horas Int     @default(2) // hasta cuántas horas antes se puede cambiar/cancelar
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
+
+  cola Cola @relation(fields: [id_cola], references: [id_cola], onDelete: Cascade)
+
+  @@map("reserva_config")
 }
 
 // ========================
@@ -581,6 +606,28 @@ enum TipoEvento {
   EVENTO
 
   @@map("tipo_evento")
+}
+
+// ========================
+// LOG DE ACTIVIDAD DE SALA
+// ========================
+// Registro visible de eventos de sala por restaurante (asignaciones,
+// liberaciones, cambios de estado). Solo lectura operativa, sin login cliente.
+model ActividadLog {
+  id_actividad Int      @id @default(autoincrement())
+  id_cola      Int
+  tipo         String   @db.VarChar(30) // MESA_ASIGNADA | MESA_LIBERADA | MESA_ESTADO
+  descripcion  String   @db.VarChar(280)
+  id_mesa      Int?
+  id_turno     Int?
+  id_reserva   Int?
+  id_waitlist  Int?
+  created_at   DateTime @default(now())
+
+  cola Cola @relation(fields: [id_cola], references: [id_cola], onDelete: Cascade)
+
+  @@index([id_cola, created_at])
+  @@map("actividad_log")
 }
 
 // ========================

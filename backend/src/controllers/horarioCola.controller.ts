@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../config/prisma';
 import { logger } from '../config/logger';
+import { authMiddleware } from '../middleware/auth.middleware';
 
 const router = Router();
 
@@ -55,7 +56,7 @@ router.get('/:colaId', async (req: Request, res: Response) => {
  * POST /api/horarios-cola/:colaId
  * Create new horario for a cola
  */
-router.post('/:colaId', async (req: Request, res: Response) => {
+router.post('/:colaId', authMiddleware, async (req: Request, res: Response) => {
   try {
     const colaId = parseInt(req.params.colaId as string);
     if (isNaN(colaId)) {
@@ -149,7 +150,7 @@ router.post('/:colaId', async (req: Request, res: Response) => {
  * PATCH /api/horarios-cola/:id
  * Update horario
  */
-router.patch('/:id', async (req: Request, res: Response) => {
+router.patch('/:id', authMiddleware, async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id as string);
     if (isNaN(id)) {
@@ -223,7 +224,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
  * DELETE /api/horarios-cola/:id
  * Delete horario
  */
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', authMiddleware, async (req: Request, res: Response) => {
   try {
     const id = parseInt(req.params.id as string);
     if (isNaN(id)) {

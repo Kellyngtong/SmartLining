@@ -1,6 +1,7 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { MesaRepository } from '../repositories/mesa.repository';
 import { logger } from '../config/logger';
+import { registrarActividad } from '../utils/actividad';
 import sse from '../sse';
 
 export interface AllocacionResult {
@@ -122,7 +123,15 @@ export class TableAllocationService {
   async intentarMatch(turnoId: number): Promise<MatchResult | null> {
     const turno = await this.prisma.turno.findUnique({
       where: { id_turno: turnoId },
-      select: { id_turno: true, id_cola: true, num_comensales: true, categoria: true, estado: true },
+      select: {
+        id_turno: true,
+        id_cola: true,
+        numero_turno: true,
+        num_comensales: true,
+        categoria: true,
+        estado: true,
+        cliente: { select: { nombre: true } },
+      },
     });
     if (!turno || turno.estado !== 'EN_ESPERA' || !turno.num_comensales) return null;
 
@@ -151,6 +160,13 @@ export class TableAllocationService {
       } catch (e) {
         logger.warn('Failed to send SSE MESA_ASIGNADA', e);
       }
+      registrarActividad({
+        id_cola: result.turno.id_cola,
+        tipo: 'MESA_ASIGNADA',
+        descripcion: `Turno ${turno.numero_turno} (${turno.cliente?.nombre ?? '?'}, ${turno.num_comensales}) → mesa ${mesa.numero}`,
+        id_mesa: mesa.id_mesa,
+        id_turno: turnoId,
+      });
       return result;
     }
 
@@ -176,16 +192,25 @@ export class TableAllocationService {
     } catch (e) {
       logger.warn('Failed to send SSE MESA_ASIGNADA', e);
     }
+    registrarActividad({
+      id_cola: result.turno.id_cola,
+      tipo: 'MESA_ASIGNADA',
+      descripcion: `Turno ${turno.numero_turno} (${turno.cliente?.nombre ?? '?'}, ${turno.num_comensales}) → grupo ${grupo.numero} (mesa ${mesaPrincipal.numero})`,
+      id_mesa: mesaPrincipal.id_mesa,
+      id_turno: turnoId,
+    });
     return result;
   }
 
   async autoMatchAlLiberar(colaId: number, capacidadLibre: number): Promise<MatchResult | null> {
+    // OJO: categoria es nullable y Prisma excluye los NULL con `not: 'X'`.
+    // Hay que pedir explícitamente NULL (turno normal) O distinto de GRAN_TAMANO.
     const turnosEspera = await this.prisma.turno.findMany({
       where: {
         id_cola: colaId,
         estado: 'EN_ESPERA',
         num_comensales: { not: null },
-        categoria: { not: 'GRAN_TAMANO' },
+        OR: [{ categoria: null }, { categoria: { not: 'GRAN_TAMANO' } }],
       },
       orderBy: { fecha_hora_creacion: 'asc' },
     });
@@ -453,8 +478,10 @@ export class TableAllocationService {
     start: Date;
     end: Date;
     duracionMin: number;
+    confirmarReserva?: boolean;
   }): Promise<AsignacionResult | null> {
     const { colaId, mesaIds, tipoOrigen, idReserva, idWaitlist, comensales, start, end, duracionMin } = params;
+    const confirmarReserva = params.confirmarReserva ?? true;
     const ahora = new Date();
     const esAhora = start.getTime() <= ahora.getTime() && ahora.getTime() <= end.getTime();
 
@@ -516,7 +543,8 @@ export class TableAllocationService {
       }
 
       // Si la asignación viene de una reserva PENDIENTE, confirmarla
-      if (tipoOrigen === 'RESERVA' && idReserva) {
+      // (salvo hold provisional: la confirmación la hace el personal o el cliente)
+      if (confirmarReserva && tipoOrigen === 'RESERVA' && idReserva) {
         const r = await tx.reserva.findUnique({ where: { id_reserva: idReserva } });
         if (r && r.estado === 'PENDIENTE') {
           await tx.reserva.update({ where: { id_reserva: idReserva }, data: { estado: 'CONFIRMADA' } });
@@ -537,6 +565,46 @@ export class TableAllocationService {
         hora_fin_prevista: created.hora_fin_prevista,
         estado: created.estado as 'PENDIENTE' | 'ACTIVA',
       };
+    }).then(async (result) => {
+      // Log visible solo cuando se sienta de verdad (ACTIVA); los holds PENDIENTE no hacen ruido
+      if (result.estado === 'ACTIVA') {
+        try {
+          const mesas = await this.prisma.mesa.findMany({
+            where: { id_mesa: { in: mesaIds } },
+            select: { numero: true },
+            orderBy: { numero: 'asc' },
+          });
+          const etiqueta = mesas.map((m) => m.numero).join('+') || mesaIds.join('+');
+          if (tipoOrigen === 'RESERVA' && idReserva) {
+            const r = await this.prisma.reserva.findUnique({
+              where: { id_reserva: idReserva },
+              select: { cliente_nombre: true },
+            });
+            registrarActividad({
+              id_cola: colaId,
+              tipo: 'MESA_ASIGNADA',
+              descripcion: `Reserva de ${r?.cliente_nombre ?? '?'} (${comensales}) → mesa ${etiqueta}`,
+              id_mesa: mesaIds[0],
+              id_reserva: idReserva,
+            });
+          } else if (tipoOrigen === 'WAITLIST' && idWaitlist) {
+            const w = await this.prisma.waitlistEntry.findUnique({
+              where: { id_waitlist: idWaitlist },
+              select: { cliente_nombre: true },
+            });
+            registrarActividad({
+              id_cola: colaId,
+              tipo: 'MESA_ASIGNADA',
+              descripcion: `${w?.cliente_nombre ?? '?'} (${comensales}) → mesa ${etiqueta}`,
+              id_mesa: mesaIds[0],
+              id_waitlist: idWaitlist,
+            });
+          }
+        } catch (e) {
+          logger.warn('No se pudo registrar actividad de asignación:', e);
+        }
+      }
+      return result;
     });
   }
 
@@ -704,6 +772,7 @@ export class TableAllocationService {
     start?: Date;
     end?: Date;
     duracionMin?: number;
+    confirmarReserva?: boolean;
   }): Promise<{ asignacion: AsignacionResult; mesa: { id_mesa: number; numero: number; capacidad: number } | null } | null> {
     const { colaId, comensales, tipoOrigen, idReserva, idWaitlist, mesaId } = params;
     const mesa = await this.prisma.mesa.findUnique({ where: { id_mesa: mesaId } });
@@ -795,6 +864,7 @@ export class TableAllocationService {
         start,
         end,
         duracionMin: duracion,
+        confirmarReserva: params.confirmarReserva ?? true,
       });
       if (!result) return null;
 
@@ -862,6 +932,60 @@ export class TableAllocationService {
       hora_fin_prevista: a.hora_fin_prevista,
       estado: a.estado,
     };
+  }
+
+  /**
+   * Libera los holds provisionales (PENDIENTE) de una reserva.
+   */
+  async liberarHoldsReserva(idReserva: number): Promise<void> {
+    await this.prisma.tableAssignment.updateMany({
+      where: { id_reserva: idReserva, estado: 'PENDIENTE' },
+      data: { estado: 'CANCELADA' },
+    });
+  }
+
+  /**
+   * Crea un hold provisional (asignación PENDIENTE con bloqueo FOR UPDATE) para
+   * la ventana de una reserva futura. NO confirma la reserva (sigue PENDIENTE).
+   * Reintenta una vez con disponibilidad fresca ante carreras. Devuelve true si
+   * la mesa quedó bloqueada.
+   */
+  async crearHoldReserva(idReserva: number): Promise<boolean> {
+    const r = await this.prisma.reserva.findUnique({ where: { id_reserva: idReserva } });
+    if (!r) return false;
+    if (r.estado === 'CANCELADA' || r.estado === 'NO_SHOW' || r.estado === 'COMPLETADA') return false;
+
+    const duracion = await this.getDuracionComida(r.id_cola);
+    const start = this.combinarFechaHora(r.fecha, r.hora_inicio);
+    const end = new Date(start.getTime() + duracion * 60000);
+
+    for (let intento = 0; intento < 2; intento++) {
+      const disp = await this.consultarDisponibilidad(r.id_cola, {
+        fecha: r.fecha,
+        horaInicio: r.hora_inicio,
+        comensales: r.num_comensales,
+        duracionMin: duracion,
+      });
+      const mejor = (disp as any)?.mejor_opcion;
+      if (!mejor) return false;
+      try {
+        const res = await this.asignarMesaManual({
+          colaId: r.id_cola,
+          comensales: r.num_comensales,
+          tipoOrigen: 'RESERVA',
+          idReserva: r.id_reserva,
+          mesaId: mejor.mesaPrincipal,
+          start,
+          end,
+          duracionMin: duracion,
+          confirmarReserva: false,
+        });
+        if (res) return true;
+      } catch (e) {
+        logger.warn(`crearHoldReserva intento ${intento} fallido`, e);
+      }
+    }
+    return false;
   }
 
   /**

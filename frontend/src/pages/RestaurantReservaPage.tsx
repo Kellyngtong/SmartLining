@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { CalendarDays, Users, ArrowLeft, CheckCircle, Minus, Plus, Search } from 'lucide-react';
+import { CalendarDays, Users, ArrowLeft, CheckCircle, Minus, Plus, Search, Copy, Clock } from 'lucide-react';
 import { apiClient } from '../services/api';
 import { Disponibilidad } from '../types';
 import '../styles/restaurant.css';
@@ -44,14 +44,18 @@ const RestaurantReservaPage: React.FC = () => {
     cliente_nombre: '',
     cliente_telefono: '',
     fecha: hoyLocal(),
-    hora_inicio: '20:00',
+    hora_inicio: '',
     num_comensales: 2,
   });
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
   const [disponibilidad, setDisponibilidad] = useState<Disponibilidad | null>(null);
+  const [slots, setSlots] = useState<{ hora: string; disponible: boolean }[]>([]);
+  const [slotsAbierto, setSlotsAbierto] = useState(true);
+  const [loadingSlots, setLoadingSlots] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [miReservaUrl, setMiReservaUrl] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = 'Reservar mesa — SmartLining';
@@ -100,10 +104,35 @@ const RestaurantReservaPage: React.FC = () => {
   const selected = restaurantes.find(r => r.id_cola === selectedId) || null;
   const maxComensales = Math.max(capacidadMax, 1);
 
-  // Al cambiar fecha/hora/comensales/restaurante, la comprobación previa caduca
+  // Slots del día según horario + disponibilidad real
+  useEffect(() => {
+    if (!selectedId || !form.fecha || form.num_comensales < 1) {
+      setSlots([]);
+      return;
+    }
+    setLoadingSlots(true);
+    apiClient
+      .getPublicSlots(selectedId, { fecha: form.fecha, comensales: form.num_comensales })
+      .then(res => {
+        const data = res.data as any;
+        setSlots(data?.slots || []);
+        setSlotsAbierto(data?.abierto !== false);
+        // Si el slot elegido ya no existe, limpiarlo
+        if (form.hora_inicio && !(data?.slots || []).some((s: any) => s.hora === form.hora_inicio)) {
+          setForm(f => ({ ...f, hora_inicio: '' }));
+        }
+      })
+      .catch(() => {
+        setSlots([]);
+      })
+      .finally(() => setLoadingSlots(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, form.fecha, form.num_comensales]);
+
+  // Al cambiar el slot, la comprobación previa caduca
   useEffect(() => {
     setDisponibilidad(null);
-  }, [form.fecha, form.hora_inicio, form.num_comensales, selectedId]);
+  }, [form.hora_inicio]);
 
   const handleCheck = async () => {
     if (!selectedId) return;
@@ -138,12 +167,23 @@ const RestaurantReservaPage: React.FC = () => {
         num_comensales: form.num_comensales,
       });
       if (res.success) {
+        const data = res.data as any;
+        const url = data?.mi_reserva_url as string | undefined;
+        setMiReservaUrl(url ? `${window.location.origin}${url}` : null);
         setSuccess(true);
       } else {
         setError('No se pudo crear la reserva');
       }
-    } catch (e) {
-      setError('Error al crear la reserva. Inténtalo de nuevo.');
+    } catch (e: any) {
+      const backendMsg = e?.response?.data?.error as string | undefined;
+      const alts = e?.response?.data?.alternativas as string[] | undefined;
+      setError(
+        backendMsg
+          ? alts && alts.length > 0
+            ? `${backendMsg}. Prueba: ${alts.join(', ')}`
+            : backendMsg
+          : 'Error al crear la reserva. Inténtalo de nuevo.'
+      );
     } finally {
       setLoading(false);
     }
@@ -175,6 +215,31 @@ const RestaurantReservaPage: React.FC = () => {
           <div style={{ marginTop: 20, fontSize: '0.95rem', color: 'var(--color-text-secondary)' }}>
             <strong>{form.num_comensales} personas</strong> · {fmtFechaCorta(form.fecha)} a las {form.hora_inicio}
           </div>
+          {miReservaUrl && (
+            <div style={{ marginTop: 20, padding: '14px', background: '#f8fafc', border: '1px solid var(--color-border)', borderRadius: 10 }}>
+              <div style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: 8 }}>Gestiona tu reserva aquí:</div>
+              <div style={{ fontSize: '0.8rem', wordBreak: 'break-all', color: 'var(--sl-amber)', marginBottom: 10 }}>{miReservaUrl}</div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button
+                  className="btn-ghost-rest"
+                  onClick={() => {
+                    navigator.clipboard.writeText(miReservaUrl);
+                    alert('Enlace copiado. Guárdalo para modificar o cancelar tu reserva.');
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.85rem' }}
+                >
+                  <Copy size={14} /> Copiar enlace
+                </button>
+                <button
+                  className="btn-restaurant"
+                  onClick={() => navigate(miReservaUrl.replace(window.location.origin, ''))}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.85rem' }}
+                >
+                  Ver mi reserva
+                </button>
+              </div>
+            </div>
+          )}
           <button
             className="btn-restaurant yellow"
             style={{ marginTop: 24, padding: '14px 28px' }}
@@ -252,32 +317,57 @@ const RestaurantReservaPage: React.FC = () => {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-              <div>
-                <label htmlFor="reserva-fecha" style={{ display: 'block', fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: 6 }}>
-                  Fecha *
-                </label>
-                <input
-                  id="reserva-fecha"
-                  type="date"
-                  value={form.fecha}
-                  min={hoyLocal()}
-                  max={sumarDias(60)}
-                  onChange={e => setForm({ ...form, fecha: e.target.value })}
-                  style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: 10, fontSize: '1rem' }}
-                />
-              </div>
-              <div>
-                <label htmlFor="reserva-hora" style={{ display: 'block', fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: 6 }}>
-                  Hora *
-                </label>
-                <input
-                  id="reserva-hora"
-                  type="time"
-                  value={form.hora_inicio}
-                  onChange={e => setForm({ ...form, hora_inicio: e.target.value })}
-                  style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: 10, fontSize: '1rem' }}
-                />
+            <div style={{ marginBottom: 14 }}>
+              <label htmlFor="reserva-fecha" style={{ display: 'block', fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: 6 }}>
+                Fecha *
+              </label>
+              <input
+                id="reserva-fecha"
+                type="date"
+                value={form.fecha}
+                min={hoyLocal()}
+                max={sumarDias(60)}
+                onChange={e => setForm({ ...form, fecha: e.target.value })}
+                style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: 10, fontSize: '1rem' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <span id="slots-label" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: 6 }}>
+                <Clock size={14} /> Hora * {loadingSlots && <span className="spinner-rest" role="status" aria-label="Cargando horarios" style={{ width: 14, height: 14 }} />}
+              </span>
+              {!loadingSlots && !slotsAbierto && (
+                <p role="status" style={{ fontSize: '0.9rem', color: '#b91c1c' }}>Cerrado ese día. Elige otra fecha.</p>
+              )}
+              {!loadingSlots && slotsAbierto && slots.length === 0 && (
+                <p role="status" style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>No hay horarios disponibles ese día.</p>
+              )}
+              <div role="group" aria-labelledby="slots-label" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {slots.map(s => {
+                  const activo = form.hora_inicio === s.hora;
+                  return (
+                    <button
+                      key={s.hora}
+                      type="button"
+                      disabled={!s.disponible}
+                      aria-pressed={activo}
+                      onClick={() => setForm({ ...form, hora_inicio: s.hora })}
+                      title={s.disponible ? `Reservar a las ${s.hora}` : `${s.hora}: completo`}
+                      style={{
+                        border: activo ? '2px solid var(--sl-black)' : '1px solid var(--color-border)',
+                        background: activo ? 'var(--sl-yellow)' : s.disponible ? '#fff' : '#f1f5f9',
+                        color: s.disponible ? 'var(--sl-black)' : '#9ca3af',
+                        borderRadius: 8,
+                        padding: '8px 14px',
+                        fontWeight: 700,
+                        cursor: s.disponible ? 'pointer' : 'not-allowed',
+                        textDecoration: s.disponible ? 'none' : 'line-through',
+                      }}
+                    >
+                      {s.hora}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

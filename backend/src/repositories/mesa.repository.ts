@@ -79,15 +79,16 @@ export class MesaRepository extends BaseRepository<
   }
 
   async findLibresByCapacidad(colaId: number, capacidadMin: number): Promise<MesaRepositoryResult[]> {
+    // Sin pre-filtro por capacidad base en SQL: una mesa con sillas extra
+    // (p. ej. base 10 + 2) también es candidata. Se filtra por efectiva en código,
+    // igual que hace getMaxCapacidad.
     const mesas = await this.prisma.mesa.findMany({
       where: {
         id_cola: colaId,
         estado: 'LIBRE',
-        capacidad: { gte: capacidadMin },
       },
       orderBy: { capacidad: 'asc' },
     });
-    // Considerar capacidad efectiva (base + sillas extra)
     const aptas = mesas.filter((m) => this.getCapacidadEfectiva(m) >= capacidadMin);
     return aptas.sort((a, b) => this.getCapacidadEfectiva(a) - this.getCapacidadEfectiva(b));
   }

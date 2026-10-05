@@ -347,6 +347,7 @@ export class Mesa {
   capacidad_extra: number;
   estado: EstadoMesa;
   id_cola: number;
+  id_zona: number | null;
   capacidad_efectiva?: number;
   grupo?: MesaGrupoInfo | null;
   fecha_creacion: Date;
@@ -359,6 +360,7 @@ export class Mesa {
     capacidad_extra?: number;
     estado: string;
     id_cola: number;
+    id_zona?: number | null;
     capacidad_efectiva?: number;
     grupo?: MesaGrupoInfo | null;
     fecha_creacion: string | Date;
@@ -370,6 +372,7 @@ export class Mesa {
     this.capacidad_extra = data.capacidad_extra ?? 0;
     this.estado = data.estado as EstadoMesa;
     this.id_cola = data.id_cola;
+    this.id_zona = data.id_zona ?? null;
     this.capacidad_efectiva = data.capacidad_efectiva;
     this.grupo = data.grupo ?? null;
     this.fecha_creacion =
