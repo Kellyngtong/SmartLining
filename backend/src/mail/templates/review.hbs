@@ -1,0 +1,8 @@
+<p>Hola {{nombre}},</p>
+<p>Gracias por visitarnos en <strong>{{marca}}</strong>. ¿Qué tal ha ido? Tu opinión nos ayuda muchísimo:</p>
+<p style="text-align:center;margin:24px 0;">
+  {{#each reviewLinks}}
+  <a href="{{url}}" style="display:inline-block;background-color:{{../color}};color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 28px;border-radius:8px;margin:4px;">Valorarnos en {{nombre}}</a>
+  {{/each}}
+</p>
+<p style="color:#6b7280;font-size:13px;">Tardarás menos de un minuto. ¡Gracias por tu visita!</p>

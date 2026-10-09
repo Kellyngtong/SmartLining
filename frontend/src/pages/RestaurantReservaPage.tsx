@@ -43,6 +43,7 @@ const RestaurantReservaPage: React.FC = () => {
   const [form, setForm] = useState({
     cliente_nombre: '',
     cliente_telefono: '',
+    cliente_email: '',
     fecha: hoyLocal(),
     hora_inicio: '',
     num_comensales: 2,
@@ -153,8 +154,10 @@ const RestaurantReservaPage: React.FC = () => {
     }
   };
 
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.cliente_email.trim());
+
   const handleSubmit = async () => {
-    if (!selectedId || !form.cliente_nombre.trim() || !form.fecha || !form.hora_inicio) return;
+    if (!selectedId || !form.cliente_nombre.trim() || !form.fecha || !form.hora_inicio || !emailOk) return;
     setLoading(true);
     setError(null);
     try {
@@ -162,6 +165,7 @@ const RestaurantReservaPage: React.FC = () => {
         id_cola: selectedId,
         cliente_nombre: form.cliente_nombre.trim(),
         cliente_telefono: form.cliente_telefono.trim() || null,
+        cliente_email: form.cliente_email.trim(),
         fecha: form.fecha,
         hora_inicio: form.hora_inicio,
         num_comensales: form.num_comensales,
@@ -317,6 +321,24 @@ const RestaurantReservaPage: React.FC = () => {
               />
             </div>
 
+            <label htmlFor="reserva-email" style={{ display: 'block', fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: 6 }}>
+              Correo electrónico *
+            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid #ddd', borderRadius: 10, padding: '0 12px', background: '#fff', marginBottom: 4 }}>
+              <input
+                id="reserva-email"
+                type="email"
+                value={form.cliente_email}
+                onChange={e => setForm({ ...form, cliente_email: e.target.value })}
+                placeholder="tucorreo@ejemplo.com"
+                maxLength={150}
+                style={{ width: '100%', border: 'none', outline: 'none', padding: '12px 0', background: 'transparent', fontSize: '1rem' }}
+              />
+            </div>
+            <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', margin: '0 0 14px' }}>
+              Lo necesitamos para enviarte la confirmación y avisos de tu reserva.
+            </p>
+
             <div style={{ marginBottom: 14 }}>
               <label htmlFor="reserva-fecha" style={{ display: 'block', fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: 6 }}>
                 Fecha *
@@ -439,7 +461,7 @@ const RestaurantReservaPage: React.FC = () => {
               className="btn-restaurant yellow"
               style={{ width: '100%', padding: '14px', fontSize: '1.05rem', marginTop: 16 }}
               onClick={handleSubmit}
-              disabled={loading || !form.cliente_nombre.trim()}
+              disabled={loading || !form.cliente_nombre.trim() || !emailOk || !form.hora_inicio}
             >
               {loading ? <span className="spinner-rest" role="status" aria-label="Enviando" /> : 'Solicitar reserva'}
             </button>

@@ -9,6 +9,17 @@ export interface ReservaConfigEfectiva {
   max_comensales_online: number;
   max_reservas_por_telefono: number;
   modificacion_limite_horas: number;
+  marca_nombre: string | null;
+  marca_logo_url: string | null;
+  marca_color: string | null;
+  recordatorio_horas_antelacion: number;
+  review_retardo_horas: number;
+  notif_creada: boolean;
+  notif_confirmada: boolean;
+  notif_recordatorio: boolean;
+  notif_cambio: boolean;
+  notif_cancelacion: boolean;
+  notif_review: boolean;
 }
 
 export const CONFIG_DEFAULTS: ReservaConfigEfectiva = {
@@ -18,6 +29,17 @@ export const CONFIG_DEFAULTS: ReservaConfigEfectiva = {
   max_comensales_online: 20,
   max_reservas_por_telefono: 3,
   modificacion_limite_horas: 2,
+  marca_nombre: null,
+  marca_logo_url: null,
+  marca_color: null,
+  recordatorio_horas_antelacion: 24,
+  review_retardo_horas: 2,
+  notif_creada: true,
+  notif_confirmada: true,
+  notif_recordatorio: true,
+  notif_cambio: true,
+  notif_cancelacion: true,
+  notif_review: true,
 };
 
 const DIAS = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
@@ -32,6 +54,17 @@ export async function getReservaConfig(colaId: number): Promise<ReservaConfigEfe
     max_comensales_online: cfg.max_comensales_online,
     max_reservas_por_telefono: cfg.max_reservas_por_telefono,
     modificacion_limite_horas: cfg.modificacion_limite_horas,
+    marca_nombre: cfg.marca_nombre,
+    marca_logo_url: cfg.marca_logo_url,
+    marca_color: cfg.marca_color,
+    recordatorio_horas_antelacion: cfg.recordatorio_horas_antelacion,
+    review_retardo_horas: cfg.review_retardo_horas,
+    notif_creada: cfg.notif_creada,
+    notif_confirmada: cfg.notif_confirmada,
+    notif_recordatorio: cfg.notif_recordatorio,
+    notif_cambio: cfg.notif_cambio,
+    notif_cancelacion: cfg.notif_cancelacion,
+    notif_review: cfg.notif_review,
   };
 }
 

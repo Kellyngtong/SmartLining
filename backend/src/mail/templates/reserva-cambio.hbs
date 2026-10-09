@@ -1,0 +1,10 @@
+<p>Hola {{nombre}},</p>
+<p>Tu reserva en <strong>{{marca}}</strong> ha cambiado. Estos son los nuevos datos:</p>
+<table style="width:100%;background-color:#f8fafc;border-radius:8px;padding:4px 0;margin:16px 0;">
+  <tr><td style="padding:12px 16px;"><strong>{{comensales}} personas</strong> · {{fecha}} a las {{hora}}</td></tr>
+</table>
+{{#if motivo}}<p>{{motivo}}</p>{{/if}}
+<p style="text-align:center;margin:24px 0;">
+  <a href="{{miReservaUrl}}" style="display:inline-block;background-color:{{color}};color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 28px;border-radius:8px;">Ver mi reserva</a>
+</p>
+<p style="color:#6b7280;font-size:13px;">Si estos datos no te encajan, contacta con nosotros o modifica la reserva desde el enlace.</p>

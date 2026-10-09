@@ -498,6 +498,34 @@ class ApiClient {
     return this.put(`/restaurant/config/${colaId}`, data);
   }
 
+  async sendEmailPrueba(colaId: number, to: string) {
+    return this.post(`/restaurant/email-prueba/${colaId}`, { to });
+  }
+
+  async previewEmail(colaId: number, plantilla: string) {
+    return this.post(`/restaurant/email-preview/${colaId}`, { plantilla });
+  }
+
+  async getEmailEstado(colaId: number) {
+    return this.get(`/restaurant/email-estado/${colaId}`);
+  }
+
+  async getResenaEnlaces(colaId: number) {
+    return this.get(`/restaurant/resena-enlaces/${colaId}`);
+  }
+
+  async createResenaEnlace(colaId: number, data: { nombre: string; url: string }) {
+    return this.post(`/restaurant/resena-enlaces/${colaId}`, data);
+  }
+
+  async updateResenaEnlace(id: number, data: unknown) {
+    return this.put(`/restaurant/resena-enlaces/${id}`, data);
+  }
+
+  async deleteResenaEnlace(id: number) {
+    return this.delete(`/restaurant/resena-enlaces/${id}`);
+  }
+
   async getClienteHistorial(colaId: number, telefono: string) {
     const response = await this.instance.get('/restaurant/clientes-historial', { params: { colaId, telefono } });
     return response.data;

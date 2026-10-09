@@ -11,6 +11,7 @@ import {
   diaSemanaDeFecha,
   slotDateTime,
 } from '../utils/reserva-config';
+import { notificarCreada, notificarConfirmada, notificarCambio, notificarCancelacion, emailValido } from '../services/reserva-notifier.service';
 import sse from '../sse';
 
 const router = Router();
@@ -167,6 +168,12 @@ router.post('/reservas', async (req: Request, res: Response) => {
       return res.status(400).json({
         success: false,
         error: 'id_cola, cliente_nombre, fecha, hora_inicio and num_comensales are required',
+      });
+    }
+    if (!emailValido(cliente_email)) {
+      return res.status(400).json({
+        success: false,
+        error: 'cliente_email es obligatorio y debe ser válido para recibir los avisos de tu reserva',
       });
     }
 
@@ -357,6 +364,8 @@ router.post('/reservas', async (req: Request, res: Response) => {
       logger.warn('Failed to send SSE RESERVA_CREADA', e);
     }
 
+    void notificarCreada(reserva);
+
     return res.status(201).json({
       success: true,
       data: { reserva, mi_reserva_url: `/restaurante/mi-reserva/${reserva.token_publico}` },
@@ -460,6 +469,7 @@ router.post('/mis-reservas/:token/confirmar', async (req: Request, res: Response
     } catch (e) {
       logger.warn('Failed to send SSE RESERVA_ESTADO', e);
     }
+    if (updated) void notificarConfirmada(updated);
     return res.json({ success: true, data: { reserva: updated }, message: 'Asistencia confirmada. ¡Te esperamos!' });
   } catch (error) {
     logger.error('Error confirming mi-reserva:', error);
@@ -500,6 +510,7 @@ router.post('/mis-reservas/:token/cancelar', async (req: Request, res: Response)
     } catch (e) {
       logger.warn('Failed to send SSE RESERVA_ESTADO', e);
     }
+    if (updated) void notificarCancelacion(updated, true);
     return res.json({ success: true, data: { reserva: updated }, message: 'Reserva cancelada' });
   } catch (error) {
     logger.error('Error cancelling mi-reserva:', error);
@@ -602,6 +613,7 @@ router.put('/mis-reservas/:token', async (req: Request, res: Response) => {
     } catch (e) {
       logger.warn('Failed to send SSE RESERVA_ESTADO', e);
     }
+    if (updated) void notificarCambio(updated, 'Has modificado tu reserva desde tu enlace personal.');
     return res.json({ success: true, data: { reserva: updated }, message: 'Reserva actualizada' });
   } catch (error) {
     logger.error('Error updating mi-reserva:', error);

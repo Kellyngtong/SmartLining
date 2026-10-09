@@ -7,6 +7,7 @@ import sse from '../sse';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { TableAllocationService } from '../services/tableAllocation.service';
 import { registrarActividad } from '../utils/actividad';
+import { notificarMesaLista } from '../services/reserva-notifier.service';
 
 const router = Router();
 const mesaRepo = new MesaRepository(prisma);
@@ -331,6 +332,23 @@ router.post('/asignar/:mesaId/:turnoId', authMiddleware, async (req: Request, re
       });
     } catch (e) {
       logger.warn('Failed to send SSE MESA_ASIGNADA', e);
+    }
+
+    void notificarMesaLista(turnoId);
+    {
+      const t = await prisma.turno.findUnique({
+        where: { id_turno: turnoId },
+        include: { cliente: { select: { nombre: true } } },
+      }).catch(() => null);
+      if (t) {
+        registrarActividad({
+          id_cola: t.id_cola,
+          tipo: 'MESA_ASIGNADA',
+          descripcion: `Turno ${t.numero_turno} (${t.cliente?.nombre ?? '?'}, ${t.num_comensales}) → mesa ${mesa.numero}`,
+          id_mesa: mesaId,
+          id_turno: turnoId,
+        });
+      }
     }
 
     return res.json({ success: true, data: result, message: 'Mesa assigned to turno' });

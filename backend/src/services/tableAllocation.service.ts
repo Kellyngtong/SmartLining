@@ -2,6 +2,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import { MesaRepository } from '../repositories/mesa.repository';
 import { logger } from '../config/logger';
 import { registrarActividad } from '../utils/actividad';
+import { notificarMesaLista } from './reserva-notifier.service';
 import sse from '../sse';
 
 export interface AllocacionResult {
@@ -130,7 +131,7 @@ export class TableAllocationService {
         num_comensales: true,
         categoria: true,
         estado: true,
-        cliente: { select: { nombre: true } },
+        cliente: { select: { nombre: true, email: true } },
       },
     });
     if (!turno || turno.estado !== 'EN_ESPERA' || !turno.num_comensales) return null;
@@ -167,6 +168,7 @@ export class TableAllocationService {
         id_mesa: mesa.id_mesa,
         id_turno: turnoId,
       });
+      void notificarMesaLista(turnoId);
       return result;
     }
 
@@ -199,6 +201,7 @@ export class TableAllocationService {
       id_mesa: mesaPrincipal.id_mesa,
       id_turno: turnoId,
     });
+    void notificarMesaLista(turnoId);
     return result;
   }
 

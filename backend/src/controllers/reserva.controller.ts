@@ -7,6 +7,7 @@ import { puedeAccederACola } from '../utils/tenant-access';
 import { TableAllocationService } from '../services/tableAllocation.service';
 import { MesaRepository } from '../repositories/mesa.repository';
 import { registrarActividad } from '../utils/actividad';
+import { notificarCreada, notificarConfirmada, notificarCambio, notificarCancelacion } from '../services/reserva-notifier.service';
 import sse from '../sse';
 
 const router = Router();
@@ -161,6 +162,8 @@ router.post('/reservas', authMiddleware, async (req: Request, res: Response) => 
       logger.warn('Failed to send SSE RESERVA_CREADA', e);
     }
 
+    void notificarCreada(reserva);
+
     return res.status(201).json({
       success: true,
       data: {
@@ -237,6 +240,7 @@ router.put('/reservas/:id', authMiddleware, async (req: Request, res: Response) 
       } catch (e) {
         logger.warn('Failed to move hold after admin edit', e);
       }
+      if (updated) void notificarCambio(updated, 'El restaurante ha actualizado tu reserva.');
     }
     return res.json({ success: true, data: updated, message: 'Reserva updated' });
   } catch (error) {
@@ -375,6 +379,11 @@ router.patch('/reservas/:id/estado', authMiddleware, async (req: Request, res: R
       });
     } catch (e) {
       logger.warn('Failed to send SSE RESERVA_ESTADO', e);
+    }
+
+    if (updated) {
+      if (estado === 'CONFIRMADA') void notificarConfirmada(updated);
+      else if (estado === 'CANCELADA' || estado === 'NO_SHOW') void notificarCancelacion(updated, false);
     }
 
     return res.json({

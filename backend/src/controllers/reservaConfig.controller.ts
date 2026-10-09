@@ -4,6 +4,8 @@ import { logger } from '../config/logger';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { puedeAccederACola } from '../utils/tenant-access';
 import { getReservaConfig } from '../utils/reserva-config';
+import { sendMail, renderMail } from '../services/mail.service';
+import { emailValido, getBrandVars } from '../services/reserva-notifier.service';
 
 const router = Router();
 
@@ -49,6 +51,25 @@ router.put('/config/:colaId', authMiddleware, async (req: Request, res: Response
     };
     let data: any;
     try {
+      const str = (v: unknown, max: number, name: string): string | null | undefined => {
+        if (v === undefined) return undefined;
+        if (v === null || v === '') return null;
+        if (typeof v !== 'string' || v.length > max) {
+          throw new Error(`${name} must be a string up to ${max} chars`);
+        }
+        return v.trim() || null;
+      };
+      const bool = (v: unknown, name: string): boolean | undefined => {
+        if (v === undefined) return undefined;
+        if (typeof v !== 'boolean') throw new Error(`${name} must be boolean`);
+        return v;
+      };
+      const color = str(body.marca_color, 20, 'marca_color');
+      if (color && !/^#[0-9a-fA-F]{3}([0-9a-fA-F]{3})?$/.test(color)) {
+        throw new Error('marca_color must be a hex color like #c9a227');
+      }
+      const pick = <T>(v: T | undefined | null, key: string): Record<string, T | null> =>
+        v === undefined ? {} : { [key]: v };
       data = {
         ...(num(body.antelacion_min_min, 0, 'antelacion_min_min') !== null && { antelacion_min_min: body.antelacion_min_min }),
         ...(num(body.antelacion_max_dias, 1, 'antelacion_max_dias') !== null && { antelacion_max_dias: body.antelacion_max_dias }),
@@ -56,6 +77,17 @@ router.put('/config/:colaId', authMiddleware, async (req: Request, res: Response
         ...(num(body.max_comensales_online, 1, 'max_comensales_online') !== null && { max_comensales_online: body.max_comensales_online }),
         ...(num(body.max_reservas_por_telefono, 1, 'max_reservas_por_telefono') !== null && { max_reservas_por_telefono: body.max_reservas_por_telefono }),
         ...(num(body.modificacion_limite_horas, 0, 'modificacion_limite_horas') !== null && { modificacion_limite_horas: body.modificacion_limite_horas }),
+        ...(num(body.recordatorio_horas_antelacion, 1, 'recordatorio_horas_antelacion') !== null && { recordatorio_horas_antelacion: body.recordatorio_horas_antelacion }),
+        ...(num(body.review_retardo_horas, 0, 'review_retardo_horas') !== null && { review_retardo_horas: body.review_retardo_horas }),
+        ...pick(str(body.marca_nombre, 150, 'marca_nombre'), 'marca_nombre'),
+        ...pick(str(body.marca_logo_url, 500, 'marca_logo_url'), 'marca_logo_url'),
+        ...pick(color, 'marca_color'),
+        ...(bool(body.notif_creada, 'notif_creada') !== undefined && { notif_creada: body.notif_creada }),
+        ...(bool(body.notif_confirmada, 'notif_confirmada') !== undefined && { notif_confirmada: body.notif_confirmada }),
+        ...(bool(body.notif_recordatorio, 'notif_recordatorio') !== undefined && { notif_recordatorio: body.notif_recordatorio }),
+        ...(bool(body.notif_cambio, 'notif_cambio') !== undefined && { notif_cambio: body.notif_cambio }),
+        ...(bool(body.notif_cancelacion, 'notif_cancelacion') !== undefined && { notif_cancelacion: body.notif_cancelacion }),
+        ...(bool(body.notif_review, 'notif_review') !== undefined && { notif_review: body.notif_review }),
       };
     } catch (e: any) {
       return res.status(400).json({ success: false, error: e.message });
@@ -69,6 +101,144 @@ router.put('/config/:colaId', authMiddleware, async (req: Request, res: Response
   } catch (error) {
     logger.error('Error updating reserva config:', error);
     return res.status(500).json({ success: false, error: 'Error updating config' });
+  }
+});
+
+// ==========================================
+// POST /api/restaurant/email-prueba/:colaId { to }
+// Enviar correo de prueba con el branding del restaurante
+// ==========================================
+router.post('/email-prueba/:colaId', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const colaId = parseInt(req.params.colaId as string);
+    const { to } = req.body;
+    if (isNaN(colaId)) {
+      return res.status(400).json({ success: false, error: 'Invalid cola ID' });
+    }
+    if (!(await puedeAccederACola(colaId, req.user?.id_empresa))) {
+      return res.status(403).json({ success: false, error: 'Access denied: cola belongs to another tenant' });
+    }
+    if (!emailValido(to)) {
+      return res.status(400).json({ success: false, error: 'to debe ser un email válido' });
+    }
+    const brand = await getBrandVars(colaId);
+    const result = await sendMail({
+      id_cola: colaId,
+      to: to.trim(),
+      subject: `Prueba de correo — ${brand.marca}`,
+      plantilla: 'email-prueba',
+      vars: {},
+      brand,
+    });
+    return res.json({ success: true, data: result });
+  } catch (error) {
+    logger.error('Error sending test email:', error);
+    return res.status(500).json({ success: false, error: 'Error sending test email' });
+  }
+});
+
+// ==========================================
+// POST /api/restaurant/email-preview/:colaId { plantilla }
+// Renderiza una plantilla con datos de ejemplo + branding (sin enviar)
+// ==========================================
+const PLANTILLAS_PREVIEW = [
+  'reserva-creada',
+  'reserva-confirmada',
+  'reserva-recordatorio',
+  'reserva-cambio',
+  'reserva-cancelada',
+  'mesa-lista',
+  'review',
+  'email-prueba',
+];
+
+router.post('/email-preview/:colaId', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const colaId = parseInt(req.params.colaId as string);
+    const { plantilla } = req.body;
+    if (isNaN(colaId)) {
+      return res.status(400).json({ success: false, error: 'Invalid cola ID' });
+    }
+    if (!(await puedeAccederACola(colaId, req.user?.id_empresa))) {
+      return res.status(403).json({ success: false, error: 'Access denied: cola belongs to another tenant' });
+    }
+    if (!PLANTILLAS_PREVIEW.includes(plantilla)) {
+      return res.status(400).json({ success: false, error: `plantilla debe ser una de: ${PLANTILLAS_PREVIEW.join(', ')}` });
+    }
+    const brand = await getBrandVars(colaId);
+    const enlaces = await prisma.resenaEnlace.findMany({
+      where: { id_cola: colaId, activa: true },
+      orderBy: [{ orden: 'asc' }, { id_enlace: 'asc' }],
+      select: { nombre: true, url: true },
+    });
+    const vars = {
+      nombre: 'María García',
+      fecha: '10/10/2026',
+      hora: '21:00',
+      comensales: 2,
+      miReservaUrl: '#',
+      motivo: 'Este es un texto de ejemplo.',
+      googleReviewUrl: null,
+      tripadvisorReviewUrl: null,
+      reviewLinks: enlaces.length > 0 ? enlaces : [
+        { nombre: 'Google', url: '#' },
+        { nombre: 'TripAdvisor', url: '#' },
+      ],
+    };
+    const html = renderMail(plantilla, vars, brand);
+    return res.json({ success: true, data: { plantilla, html } });
+  } catch (error) {
+    logger.error('Error rendering email preview:', error);
+    return res.status(500).json({ success: false, error: 'Error rendering preview' });
+  }
+});
+
+// ==========================================
+// GET /api/restaurant/email-estado/:colaId
+// Diagnóstico SMTP: configuración (sin secretos), volumen 24h y último error
+// ==========================================
+router.get('/email-estado/:colaId', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const colaId = parseInt(req.params.colaId as string);
+    if (isNaN(colaId)) {
+      return res.status(400).json({ success: false, error: 'Invalid cola ID' });
+    }
+    if (!(await puedeAccederACola(colaId, req.user?.id_empresa))) {
+      return res.status(403).json({ success: false, error: 'Access denied: cola belongs to another tenant' });
+    }
+    const desde = new Date(Date.now() - 24 * 3600000);
+    const [grupos, ultimo] = await Promise.all([
+      prisma.emailLog.groupBy({
+        by: ['estado'],
+        where: { id_cola: colaId, created_at: { gte: desde } },
+        _count: { estado: true },
+      }),
+      prisma.emailLog.findFirst({
+        where: { id_cola: colaId, estado: { in: ['FALLO', 'OMITIDO'] } },
+        orderBy: { created_at: 'desc' },
+      }),
+    ]);
+    const stats: Record<string, number> = { ENVIADO: 0, FALLO: 0, OMITIDO: 0 };
+    for (const g of grupos) {
+      if (g.estado in stats) stats[g.estado] = g._count.estado;
+    }
+    const user = process.env.SMTP_USER || '';
+    return res.json({
+      success: true,
+      data: {
+        configurado: !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASSWORD),
+        host: process.env.SMTP_HOST || null,
+        puerto: process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : null,
+        usuario: user ? `${user.slice(0, 3)}***` : null,
+        ultimas_24h: stats,
+        ultimo_error: ultimo
+          ? { plantilla: ultimo.plantilla, destinatario: ultimo.destinatario, error: ultimo.error, fecha: ultimo.created_at }
+          : null,
+      },
+    });
+  } catch (error) {
+    logger.error('Error fetching email estado:', error);
+    return res.status(500).json({ success: false, error: 'Error fetching email estado' });
   }
 });
 

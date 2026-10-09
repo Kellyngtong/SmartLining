@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:Arial,Helvetica,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:24px 16px;">
+    <div style="background-color:{{color}};border-radius:12px 12px 0 0;padding:20px;text-align:center;">
+      {{#if logoUrl}}<img src="{{logoUrl}}" alt="{{marca}}" style="max-height:56px;max-width:220px;" />{{/if}}
+      <div style="color:#ffffff;font-size:22px;font-weight:bold;{{#if logoUrl}}margin-top:8px;{{/if}}">{{marca}}</div>
+    </div>
+    <div style="background-color:#ffffff;border-radius:0 0 12px 12px;padding:28px 24px;color:#1f2937;font-size:15px;line-height:1.6;">
+      {{{body}}}
+    </div>
+    <div style="text-align:center;color:#9ca3af;font-size:12px;margin-top:16px;line-height:1.5;">
+      Recibes este correo por tu reserva en {{marca}}.<br />SmartLining · Gestión de reservas
+    </div>
+  </div>
+</body>
+</html>

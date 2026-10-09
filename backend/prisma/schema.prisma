@@ -131,6 +131,8 @@ model Cola {
   asignaciones TableAssignment[]
   reservaConfig ReservaConfig?
   actividad ActividadLog[]
+  emailLogs EmailLog[]
+  resenaEnlaces ResenaEnlace[]
 
   @@map("cola")
 }
@@ -376,6 +378,8 @@ model Reserva {
   preferencia_mesa Int?          @db.Int // opcional: id_mesa preferida
   origen           OrigenReserva @default(TELEFONO)
   token_publico    String?       @unique @db.VarChar(64) // autogestión del cliente sin login
+  recordatorio_enviado_at DateTime? // email recordatorio 24h (anti-duplicado)
+  review_enviado_at       DateTime? // email de reseña Google post-visita (anti-duplicado)
   created_at       DateTime      @default(now())
   updated_at       DateTime      @updatedAt
 
@@ -426,6 +430,18 @@ model ReservaConfig {
   max_comensales_online    Int      @default(20) // tope de comensales por reserva web
   max_reservas_por_telefono Int     @default(3) // reservas activas por teléfono
   modificacion_limite_horas Int     @default(2) // hasta cuántas horas antes se puede cambiar/cancelar
+  // Comunicaciones por email (variables por restaurante)
+  marca_nombre      String?  @db.VarChar(150) // branding: nombre visible
+  marca_logo_url    String?  @db.VarChar(500) // branding: logo
+  marca_color       String?  @db.VarChar(20) // branding: color primario hex
+  recordatorio_horas_antelacion Int @default(24) // recordatorio Xh antes del slot
+  review_retardo_horas      Int @default(2) // reseña Xh después de completar
+  notif_creada      Boolean @default(true)
+  notif_confirmada  Boolean @default(true)
+  notif_recordatorio Boolean @default(true)
+  notif_cambio      Boolean @default(true)
+  notif_cancelacion Boolean @default(true)
+  notif_review      Boolean @default(true)
   created_at               DateTime @default(now())
   updated_at               DateTime @updatedAt
 
@@ -628,6 +644,45 @@ model ActividadLog {
 
   @@index([id_cola, created_at])
   @@map("actividad_log")
+}
+
+// ========================
+// LOG DE EMAILS (auditoría de comunicaciones)
+// ========================
+model EmailLog {
+  id_email    Int      @id @default(autoincrement())
+  id_cola     Int
+  destinatario String  @db.VarChar(150)
+  plantilla   String   @db.VarChar(60)
+  asunto      String   @db.VarChar(200)
+  estado      String   @db.VarChar(20) // ENVIADO | FALLO | OMITIDO
+  error       String?  @db.Text
+  created_at  DateTime @default(now())
+
+  cola Cola @relation(fields: [id_cola], references: [id_cola], onDelete: Cascade)
+
+  @@index([id_cola, created_at])
+  @@map("email_log")
+}
+
+// ========================
+// ENLACES DE RESEÑA POR RESTAURANTE
+// ========================
+// Lista configurable de plataformas (Google, TripAdvisor, ElTenedor…)
+// que aparece en el email post-visita. Sin enlaces activos no se envía.
+model ResenaEnlace {
+  id_enlace  Int      @id @default(autoincrement())
+  id_cola    Int
+  nombre     String   @db.VarChar(60) // ej. Google, TripAdvisor
+  url        String   @db.VarChar(500)
+  orden      Int      @default(0)
+  activa     Boolean  @default(true)
+  created_at DateTime @default(now())
+
+  cola Cola @relation(fields: [id_cola], references: [id_cola], onDelete: Cascade)
+
+  @@index([id_cola, orden])
+  @@map("resena_enlace")
 }
 
 // ========================

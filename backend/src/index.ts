@@ -32,6 +32,8 @@ import asignacionController from './controllers/asignacion.controller';
 import salaController from './controllers/sala.controller';
 import publicRestaurantController from './controllers/publicRestaurant.controller';
 import reservaConfigController from './controllers/reservaConfig.controller';
+import resenaEnlaceController from './controllers/resenaEnlace.controller';
+import { startComunicacionesScheduler } from './jobs/comunicaciones.job';
 
 const app = express();
 
@@ -168,6 +170,7 @@ app.use('/api/restaurant', asignacionController);
 app.use('/api/restaurant', salaController);
 app.use('/api/restaurant/public', publicRestaurantController);
 app.use('/api/restaurant', reservaConfigController);
+app.use('/api/restaurant', resenaEnlaceController);
 
 // Debug helpers: collect routes including parent mount prefixes
 function collectRoutes(appInstance: any) {
@@ -312,6 +315,11 @@ const startServer = async () => {
 
       logger.info(`🚀 Server is ready at http://${displayHost}:${environment.PORT}`);
       logger.info(`📡 API routes available at http://${displayHost}:${environment.PORT}/api`);
+      try {
+        startComunicacionesScheduler();
+      } catch (e) {
+        logger.warn('No se pudo iniciar el programador de comunicaciones', e);
+      }
     });
 
     server.on('error', (err) => {

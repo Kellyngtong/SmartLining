@@ -13,10 +13,13 @@ const RestaurantQueuePage: React.FC = () => {
 
   const [numComensales, setNumComensales] = useState(2);
   const [nombre, setNombre] = useState('');
+  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [colaNombre, setColaNombre] = useState('Restaurante');
   const [capacidadMax, setCapacidadMax] = useState(0);
+
+  const emailOk = email.trim() === '' || /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
 
   useEffect(() => {
     document.title = 'Entrar en la cola — SmartLining';
@@ -56,7 +59,10 @@ const RestaurantQueuePage: React.FC = () => {
       // Crear un cliente con un nombre amigable (opcional). Si no se aporta,
       // usamos "Grupo" sin sufijos técnicos para mantener identificadores claros.
       const nombreAmigable = (nombre && nombre.trim()) || 'Grupo';
-      const clientResponse = await apiClient.createCliente({ nombre: nombreAmigable });
+      const clientResponse = await apiClient.createCliente({
+        nombre: nombreAmigable,
+        ...(email.trim() ? { email: email.trim() } : {}),
+      });
       const clienteId = (clientResponse.data as { id_cliente: number }).id_cliente;
 
       // Crear el turno de restaurante con el número de comensales
@@ -111,6 +117,27 @@ const RestaurantQueuePage: React.FC = () => {
           </div>
         </div>
 
+        <div className="comensales-nombre" style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', textAlign: 'left', fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: 6 }}>
+            Correo electrónico (opcional, para avisarte cuando tu mesa esté lista)
+          </label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: `1px solid ${email.trim() && !emailOk ? '#fca5a5' : 'var(--color-border)'}`, borderRadius: 10, padding: '0 12px', background: '#fff' }}>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="tucorreo@ejemplo.com"
+              maxLength={150}
+              style={{ width: '100%', border: 'none', outline: 'none', padding: '12px 0', background: 'transparent', fontSize: '1rem' }}
+            />
+          </div>
+          {email.trim() && !emailOk && (
+            <p role="alert" style={{ color: '#b91c1c', fontSize: '0.8rem', margin: '4px 0 0', textAlign: 'left' }}>
+              Revisa el formato del correo
+            </p>
+          )}
+        </div>
+
         <div className="comensales-stepper">
           <button type="button" onClick={() => setNumComensales(Math.max(1, numComensales - 1))} aria-label="Quitar un comensal">
             <Minus />
@@ -145,7 +172,7 @@ const RestaurantQueuePage: React.FC = () => {
           className="btn-restaurant yellow"
           style={{ width: '100%', padding: '14px', fontSize: '1.1rem', marginTop: 16 }}
           onClick={handleSubmit}
-          disabled={loading}
+          disabled={loading || !emailOk}
         >
           {loading ? <span className="spinner-rest" role="status" aria-label="Registrando" /> : 'Entrar en la cola'}
         </button>
