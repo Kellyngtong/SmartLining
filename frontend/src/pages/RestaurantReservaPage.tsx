@@ -56,6 +56,7 @@ const RestaurantReservaPage: React.FC = () => {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [reservaConfirmada, setReservaConfirmada] = useState(false);
   const [miReservaUrl, setMiReservaUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -174,6 +175,7 @@ const RestaurantReservaPage: React.FC = () => {
         const data = res.data as any;
         const url = data?.mi_reserva_url as string | undefined;
         setMiReservaUrl(url ? `${window.location.origin}${url}` : null);
+        setReservaConfirmada((data?.reserva?.estado ?? 'CONFIRMADA') === 'CONFIRMADA');
         setSuccess(true);
       } else {
         setError('No se pudo crear la reserva');
@@ -211,10 +213,15 @@ const RestaurantReservaPage: React.FC = () => {
         </div>
         <div className="ticket-status" style={{ marginBottom: 24 }}>
           <CheckCircle size={56} style={{ color: '#22c55e', marginBottom: 12 }} />
-          <div className="status-text">Tu reserva está en estado PENDIENTE</div>
+          <div className="status-text">
+            {reservaConfirmada ? '¡Mesa reservada!' : 'Tu reserva está en estado PENDIENTE'}
+          </div>
           <p className="status-detail">
-            {selected?.nombre || 'El restaurante'} la revisará y te confirmará
-            {form.cliente_telefono ? ` en el ${form.cliente_telefono}` : ' lo antes posible'}.
+            {reservaConfirmada
+              ? `${selected?.nombre || 'El restaurante'} te espera. Si surge cualquier cambio, avísanos desde tu enlace.`
+              : `${selected?.nombre || 'El restaurante'} la revisará y te confirmará${
+                  form.cliente_telefono ? ` en el ${form.cliente_telefono}` : ' lo antes posible'
+                }.`}
           </p>
           <div style={{ marginTop: 20, fontSize: '0.95rem', color: 'var(--color-text-secondary)' }}>
             <strong>{form.num_comensales} personas</strong> · {fmtFechaCorta(form.fecha)} a las {form.hora_inicio}
@@ -263,7 +270,7 @@ const RestaurantReservaPage: React.FC = () => {
           <CalendarDays size={26} />
           Reservar mesa
         </h1>
-        <p>Completa los datos y el restaurante confirmará tu reserva.</p>
+          <p>Completa los datos y tu mesa quedará reservada al instante.</p>
       </div>
 
       <div style={{ maxWidth: 480, margin: '0 auto' }}>

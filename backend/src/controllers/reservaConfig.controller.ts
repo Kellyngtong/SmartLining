@@ -230,6 +230,7 @@ router.get('/email-estado/:colaId', authMiddleware, async (req: Request, res: Re
         host: process.env.SMTP_HOST || null,
         puerto: process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT, 10) : null,
         usuario: user ? `${user.slice(0, 3)}***` : null,
+        remitente: process.env.SMTP_FROM?.trim() || user || null,
         ultimas_24h: stats,
         ultimo_error: ultimo
           ? { plantilla: ultimo.plantilla, destinatario: ultimo.destinatario, error: ultimo.error, fecha: ultimo.created_at }

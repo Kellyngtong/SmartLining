@@ -11,7 +11,7 @@ import {
   diaSemanaDeFecha,
   slotDateTime,
 } from '../utils/reserva-config';
-import { notificarCreada, notificarConfirmada, notificarCambio, notificarCancelacion, emailValido } from '../services/reserva-notifier.service';
+import { notificarConfirmada, notificarCambio, notificarCancelacion, emailValido } from '../services/reserva-notifier.service';
 import sse from '../sse';
 
 const router = Router();
@@ -344,6 +344,7 @@ router.post('/reservas', async (req: Request, res: Response) => {
       notas: notas?.trim() || null,
       preferencia_zona: preferencia_zona ?? null,
       origen: 'WEB',
+      estado: 'CONFIRMADA',
       token_publico: randomUUID(),
     });
 
@@ -364,12 +365,12 @@ router.post('/reservas', async (req: Request, res: Response) => {
       logger.warn('Failed to send SSE RESERVA_CREADA', e);
     }
 
-    void notificarCreada(reserva);
+    void notificarConfirmada(reserva);
 
     return res.status(201).json({
       success: true,
       data: { reserva, mi_reserva_url: `/restaurante/mi-reserva/${reserva.token_publico}` },
-      message: 'Reserva creada con éxito. El restaurante confirmará pronto.',
+      message: 'Reserva confirmada. ¡Te esperamos!',
     });
   } catch (error) {
     logger.error('Error creating public reserva:', error);

@@ -291,6 +291,11 @@ const AjustesTab: React.FC<{ colaId: number }> = ({ colaId }) => {
                 <strong>SMTP {emailEstado.configurado ? 'configurado' : 'sin configurar'}</strong>
                 {emailEstado.host && <span> · {emailEstado.host}:{emailEstado.puerto} · {emailEstado.usuario}</span>}
               </div>
+              {emailEstado.remitente && (
+                <div style={{ marginTop: 4 }}>
+                  Remitente: <strong>{emailEstado.remitente}</strong> (debe estar verificado en Brevo)
+                </div>
+              )}
               <div style={{ marginTop: 4 }}>
                 Últimas 24h: {emailEstado.ultimas_24h?.ENVIADO ?? 0} enviados · {emailEstado.ultimas_24h?.FALLO ?? 0} fallos · {emailEstado.ultimas_24h?.OMITIDO ?? 0} omitidos
               </div>

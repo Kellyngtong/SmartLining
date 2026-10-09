@@ -44,6 +44,8 @@ export interface ReservaConAsignacion extends Reserva {
   }>;
 }
 
+export const ESTADOS_FINALES_RESERVA = ['COMPLETADA', 'CANCELADA', 'NO_SHOW'];
+
 export class ReservaRepository extends BaseRepository<Reserva, CreateReservaDTO, UpdateReservaDTO> {
   async findById(id: number): Promise<Reserva | null> {
     return this.prisma.reserva.findUnique({ where: { id_reserva: id } });
@@ -59,20 +61,32 @@ export class ReservaRepository extends BaseRepository<Reserva, CreateReservaDTO,
 
   async findReservasByCola(
     colaId: number,
-    opts: { fecha?: Date; estado?: string; cliente?: string } = {}
+    opts: { fecha?: Date; estado?: string; cliente?: string; vista?: 'actual' | 'historial' } = {}
   ): Promise<ReservaConAsignacion[]> {
     const where: any = { id_cola: colaId };
-    if (opts.fecha) where.fecha = opts.fecha;
-    if (opts.estado) where.estado = opts.estado;
+    if (opts.vista === 'actual') {
+      // En curso: estados no finales, cualquier fecha, próximas primero
+      where.estado = { notIn: ESTADOS_FINALES_RESERVA };
+    } else if (opts.vista === 'historial') {
+      // Cerradas: solo finales, de más reciente a más antigua
+      where.estado = { in: ESTADOS_FINALES_RESERVA };
+    } else {
+      if (opts.fecha) where.fecha = opts.fecha;
+      if (opts.estado) where.estado = opts.estado;
+    }
     if (opts.cliente) {
       where.OR = [
         { cliente_nombre: { contains: opts.cliente } },
         { cliente_telefono: { contains: opts.cliente } },
       ];
     }
+    const esHistorial = opts.vista === 'historial';
     return this.prisma.reserva.findMany({
       where,
-      orderBy: [{ fecha: 'asc' }, { hora_inicio: 'asc' }],
+      orderBy: esHistorial
+        ? [{ fecha: 'desc' }, { hora_inicio: 'desc' }]
+        : [{ fecha: 'asc' }, { hora_inicio: 'asc' }],
+      ...(esHistorial ? { take: 200 } : {}),
       include: {
         asignaciones: {
           include: { mesa: { select: { id_mesa: true, numero: true } } },

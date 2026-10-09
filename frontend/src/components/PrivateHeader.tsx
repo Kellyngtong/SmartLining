@@ -23,7 +23,7 @@ const PrivateHeader: React.FC = () => {
   const rol = user?.rol;
   const isAdmin = rol === 'ADMINISTRADOR';
 
-  // La cola restaurante estándar (Restaurante El Buen Sabor, ID 7 de la seed)
+  // La cola restaurante estándar (Restaurante El Cordero, ID 7 de la seed)
   const colaRestauranteId = 7;
 
   return (

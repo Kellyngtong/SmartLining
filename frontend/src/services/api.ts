@@ -381,7 +381,7 @@ class ApiClient {
   }
 
   // Reservas
-  async getReservas(colaId: number, params?: { fecha?: string; estado?: string; cliente?: string }) {
+  async getReservas(colaId: number, params?: { fecha?: string; estado?: string; cliente?: string; vista?: 'actual' | 'historial' }) {
     const response = await this.instance.get(`/restaurant/reservas/${colaId}`, { params });
     return response.data;
   }

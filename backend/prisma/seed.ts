@@ -19,7 +19,7 @@ async function main() {
   const empresaRestaurante = await prisma.empresa.upsert({
     where: { id_empresa: 2 },
     update: {},
-    create: { nombre: 'Restaurante El Buen Sabor', licencia: 'RESTAURANTE' as any },
+    create: { nombre: 'Restaurante El Cordero', licencia: 'RESTAURANTE' as any },
   });
   console.log(`🏢  Empresas: "${empresaGeneral.nombre}" (${empresaGeneral.licencia}) y "${empresaRestaurante.nombre}" (${empresaRestaurante.licencia})`);
 
@@ -56,11 +56,11 @@ async function main() {
   // ========================================
   // COLA RESTAURANTE
   // ========================================
-  let restauranteCola = await prisma.cola.findFirst({ where: { nombre: 'Restaurante El Buen Sabor' } });
+  let restauranteCola = await prisma.cola.findFirst({ where: { nombre: 'Restaurante El Cordero' } });
   if (!restauranteCola) {
     restauranteCola = await prisma.cola.create({
       data: {
-        nombre: 'Restaurante El Buen Sabor',
+        nombre: 'Restaurante El Cordero',
         descripcion: 'Cola del restaurante — gestiona mesas y comensales',
         tipo: 'RESTAURANTE',
         activa: true,

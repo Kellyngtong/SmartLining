@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CalendarDays, Plus, Phone, Trash2, Users, Search, Copy, History } from 'lucide-react';
+import { Plus, Phone, Trash2, Users, Search, Copy, History } from 'lucide-react';
 import { Reserva } from '../../types';
 import { apiClient } from '../../services/api';
 import { useRestaurantStore } from '../../store/restaurant.store';
@@ -26,10 +26,9 @@ const COLORES: Record<string, string> = {
 };
 
 interface ReservasTabProps {
-  reservas: Reserva[];
-  fecha: string;
+  reservasActuales: Reserva[];
+  reservasHistorial: Reserva[];
   zonas: { id_zona: number; nombre: string }[];
-  onFechaChange: (fecha: string) => void;
   onChangeEstado: (id: number, estado: string) => Promise<void>;
   onDelete: (reserva: Reserva) => void;
 }
@@ -39,8 +38,9 @@ const hoyLocal = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-const ReservasTab: React.FC<ReservasTabProps> = ({ reservas, fecha, zonas, onFechaChange, onChangeEstado, onDelete }) => {
+const ReservasTab: React.FC<ReservasTabProps> = ({ reservasActuales, reservasHistorial, zonas, onChangeEstado, onDelete }) => {
   const [creando, setCreando] = useState(false);
+  const [vista, setVista] = useState<'actual' | 'historial'>('actual');
   const [check, setCheck] = useState(false);
   const [form, setForm] = useState({
     cliente_nombre: '',
@@ -51,7 +51,7 @@ const ReservasTab: React.FC<ReservasTabProps> = ({ reservas, fecha, zonas, onFec
     origen: 'TELEFONO',
     auto_asignar: true,
   });
-  const [checkForm, setCheckForm] = useState({ fecha: fecha || hoyLocal(), hora: '20:00', comensales: 2 });
+  const [checkForm, setCheckForm] = useState({ fecha: hoyLocal(), hora: '20:00', comensales: 2 });
   const [disponibilidad, setDisponibilidad] = useState<{ hayDisponibilidad: boolean; opciones: any[]; hora_inicio: string; hora_fin_prevista: string } | null>(null);
   const [colapsado, setColapsado] = useState<string | null>(null);
   const [historial, setHistorial] = useState<Record<number, any>>({});
@@ -61,7 +61,18 @@ const ReservasTab: React.FC<ReservasTabProps> = ({ reservas, fecha, zonas, onFec
 
   const hoy = hoyLocal();
 
-  const ordenadas = [...reservas].sort((a, b) => (a.hora_inicio_str || a.hora_inicio).localeCompare(b.hora_inicio_str || b.hora_inicio));
+  // El backend ya devuelve cada vista ordenada (actual: asc, historial: desc)
+  const reservas = vista === 'actual' ? reservasActuales : reservasHistorial;
+  const ordenadas = reservas;
+
+  const cambiarVista = (v: 'actual' | 'historial') => {
+    setVista(v);
+    const st = useRestaurantStore.getState();
+    if (st.colaId) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      v === 'actual' ? st.fetchReservasActuales(st.colaId) : st.fetchReservasHistorial(st.colaId);
+    }
+  };
 
   const handleCrear = async () => {
     if (!form.cliente_nombre.trim() || !form.fecha || !form.hora_inicio) return;
@@ -128,15 +139,10 @@ const ReservasTab: React.FC<ReservasTabProps> = ({ reservas, fecha, zonas, onFec
   return (
     <div>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 16 }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <CalendarDays size={16} />
-          <input
-            type="date"
-            value={fecha}
-            onChange={e => { onFechaChange(e.target.value); setCheckForm({ ...checkForm, fecha: e.target.value }); }}
-            style={{ padding: '8px 10px', border: '1px solid #ddd', borderRadius: 8 }}
-          />
-        </label>
+        <div className="vista-toggle" style={{ marginBottom: 0 }} role="tablist" aria-label="Ver reservas actuales o historial">
+          <button className={vista === 'actual' ? 'active' : ''} onClick={() => cambiarVista('actual')}>Actuales</button>
+          <button className={vista === 'historial' ? 'active' : ''} onClick={() => cambiarVista('historial')}>Historial</button>
+        </div>
         <button className="btn-restaurant" onClick={() => setCreando(c => !c)}>
           <Plus size={16} style={{ marginRight: 6 }} /> Nueva reserva
         </button>
@@ -148,7 +154,9 @@ const ReservasTab: React.FC<ReservasTabProps> = ({ reservas, fecha, zonas, onFec
         </span>
       </div>
       <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', margin: '0 0 16px' }}>
-        Gestión completa: crear, editar, filtrar y consultar disponibilidad. Para la operativa del día por mesa, usa Agenda.
+        {vista === 'actual'
+          ? 'En curso, ordenadas de más próxima a más lejana. Para la operativa del día por mesa, usa Agenda.'
+          : 'Finalizadas (completadas, canceladas, no presentadas), de más reciente a más antigua.'}
       </p>
 
       {creando && (
@@ -232,7 +240,7 @@ const ReservasTab: React.FC<ReservasTabProps> = ({ reservas, fecha, zonas, onFec
 
       {ordenadas.length === 0 ? (
         <div className="cola-espera-card" style={{ textAlign: 'center', color: '#999' }}>
-          No hay reservas para esta fecha
+          {vista === 'actual' ? 'No hay reservas en curso' : 'El historial está vacío'}
         </div>
       ) : (
         <div className="cola-espera-card">

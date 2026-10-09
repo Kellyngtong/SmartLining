@@ -62,9 +62,11 @@ router.get('/reservas/:colaId', authMiddleware, async (req: Request, res: Respon
     const fechaStr = req.query.fecha as string | undefined;
     const estado = req.query.estado as string | undefined;
     const cliente = req.query.cliente as string | undefined;
+    const vistaParam = req.query.vista as string | undefined;
+    const vista = vistaParam === 'actual' || vistaParam === 'historial' ? vistaParam : undefined;
     const fecha = fechaStr ? new Date(`${fechaStr}T00:00:00`) : undefined;
 
-    const reservas = await reservaRepo.findReservasByCola(colaId, { fecha, estado, cliente });
+    const reservas = await reservaRepo.findReservasByCola(colaId, { fecha, estado, cliente, vista });
     const data = reservas.map((r) => ({
       ...r,
       hora_inicio_str: horaToHHMM(r.hora_inicio),

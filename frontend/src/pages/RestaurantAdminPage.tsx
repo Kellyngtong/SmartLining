@@ -50,6 +50,8 @@ const RestaurantAdminPage: React.FC = () => {
     zonas,
     mesasSinZona,
     reservas,
+    reservasActuales,
+    reservasHistorial,
     waitlist,
     dashboard,
     ocupacion,
@@ -282,7 +284,7 @@ const RestaurantAdminPage: React.FC = () => {
     return ok;
   };
 
-  const pendientes = reservas.filter(r => r.estado === 'PENDIENTE').length;
+  const pendientes = reservasActuales.filter(r => r.estado === 'PENDIENTE').length;
   const enEsperaWl = waitlist.filter(w => w.estado === 'ESPERANDO' || w.estado === 'NOTIFICADO').length;
 
   // Aviso sonoro al llegar una reserva nueva (el navegador lo permite tras la primera interacción)
@@ -577,10 +579,9 @@ const RestaurantAdminPage: React.FC = () => {
 
       {tab === 'reservas' && (
         <ReservasTab
-          reservas={reservas}
-          fecha={fechaReservas}
+          reservasActuales={reservasActuales}
+          reservasHistorial={reservasHistorial}
           zonas={zonas.map(z => ({ id_zona: z.id_zona, nombre: z.nombre }))}
-          onFechaChange={handleFechaReservas}
           onChangeEstado={async (rid, estado) => {
             const ok = await cambiarEstadoReserva(rid, estado);
             setMensaje(ok ? `Estado de reserva actualizado a ${estado}` : error || 'No se pudo actualizar');

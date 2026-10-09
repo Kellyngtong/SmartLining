@@ -62,6 +62,8 @@ interface RestaurantStore {
   zonas: Zona[];
   mesasSinZona: MesaZona[];
   reservas: Reserva[];
+  reservasActuales: Reserva[];
+  reservasHistorial: Reserva[];
   waitlist: WaitlistEntry[];
   waitlistFiltro: { estado?: string; activas?: boolean };
   setWaitlistFiltro: (filtro: { estado?: string; activas?: boolean }) => void;
@@ -76,6 +78,9 @@ interface RestaurantStore {
   fetchActividad: (colaId: number) => Promise<void>;
   fetchZonas: (colaId: number) => Promise<void>;
   fetchReservas: (colaId: number, fecha?: string) => Promise<void>;
+  fetchReservasActuales: (colaId: number) => Promise<void>;
+  fetchReservasHistorial: (colaId: number) => Promise<void>;
+  refreshReservas: (colaId: number) => Promise<void>;
   fetchWaitlist: (colaId: number, opts?: { estado?: string; activas?: boolean }) => Promise<void>;
   fetchDashboard: (colaId: number) => Promise<void>;
   initSse: (colaId: number) => () => void;
@@ -115,6 +120,8 @@ export const useRestaurantStore = create<RestaurantStore>(set => ({
   zonas: [],
   mesasSinZona: [],
   reservas: [],
+  reservasActuales: [],
+  reservasHistorial: [],
   waitlist: [],
   waitlistFiltro: { activas: true },
   setWaitlistFiltro: (filtro) => set({ waitlistFiltro: filtro }),
@@ -173,6 +180,28 @@ export const useRestaurantStore = create<RestaurantStore>(set => ({
     }
   },
 
+  fetchReservasActuales: async (colaId: number) => {
+    try {
+      const response = await apiClient.getReservas(colaId, { vista: 'actual' });
+      const data = response.data as any;
+      if (data) set({ reservasActuales: data || [] });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch reservas';
+      set({ error: message });
+    }
+  },
+
+  fetchReservasHistorial: async (colaId: number) => {
+    try {
+      const response = await apiClient.getReservas(colaId, { vista: 'historial' });
+      const data = response.data as any;
+      if (data) set({ reservasHistorial: data || [] });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to fetch reservas';
+      set({ error: message });
+    }
+  },
+
   fetchWaitlist: async (colaId: number, opts?: { estado?: string; activas?: boolean }) => {
     try {
       const filtro = opts ?? useRestaurantStore.getState().waitlistFiltro;
@@ -203,6 +232,7 @@ export const useRestaurantStore = create<RestaurantStore>(set => ({
       useRestaurantStore.getState().fetchCola(colaId),
       useRestaurantStore.getState().fetchZonas(colaId),
       useRestaurantStore.getState().fetchReservas(colaId, fecha),
+      useRestaurantStore.getState().fetchReservasActuales(colaId),
       useRestaurantStore.getState().fetchWaitlist(colaId, filtroWl),
       useRestaurantStore.getState().fetchDashboard(colaId),
       useRestaurantStore.getState().fetchActividad(colaId),
@@ -494,6 +524,15 @@ export const useRestaurantStore = create<RestaurantStore>(set => ({
   // ========================================
   // Reservas
   // ========================================
+  refreshReservas: async (colaId: number) => {
+    const st = useRestaurantStore.getState();
+    await Promise.all([
+      st.fetchReservas(colaId, st.reservasFecha || undefined),
+      st.fetchReservasActuales(colaId),
+      st.fetchReservasHistorial(colaId),
+    ]);
+  },
+
   crearReserva: async (data: Record<string, unknown>) => {
     set({ error: null });
     try {
@@ -501,8 +540,7 @@ export const useRestaurantStore = create<RestaurantStore>(set => ({
       if (response.success) {
         const colaId = useRestaurantStore.getState().colaId;
         if (colaId) {
-          const fecha = (data.fecha as string) || useRestaurantStore.getState().reservasFecha;
-          await useRestaurantStore.getState().fetchReservas(colaId, fecha);
+          await useRestaurantStore.getState().refreshReservas(colaId);
           await useRestaurantStore.getState().fetchDashboard(colaId);
         }
         return true;
@@ -520,7 +558,7 @@ export const useRestaurantStore = create<RestaurantStore>(set => ({
       const response = await apiClient.updateReserva(id, data);
       if (response.success) {
         const colaId = useRestaurantStore.getState().colaId;
-        if (colaId) await useRestaurantStore.getState().fetchReservas(colaId, useRestaurantStore.getState().reservasFecha || undefined);
+        if (colaId) await useRestaurantStore.getState().refreshReservas(colaId);
         return true;
       }
       return false;
@@ -537,7 +575,7 @@ export const useRestaurantStore = create<RestaurantStore>(set => ({
       if (response.success) {
         const colaId = useRestaurantStore.getState().colaId;
         if (colaId) {
-          await useRestaurantStore.getState().fetchReservas(colaId, useRestaurantStore.getState().reservasFecha || undefined);
+          await useRestaurantStore.getState().refreshReservas(colaId);
           await useRestaurantStore.getState().fetchDashboard(colaId);
           await useRestaurantStore.getState().fetchCola(colaId);
         }
@@ -556,7 +594,7 @@ export const useRestaurantStore = create<RestaurantStore>(set => ({
       const response = await apiClient.deleteReserva(id);
       if (response.success) {
         const colaId = useRestaurantStore.getState().colaId;
-        if (colaId) await useRestaurantStore.getState().fetchReservas(colaId, useRestaurantStore.getState().reservasFecha || undefined);
+        if (colaId) await useRestaurantStore.getState().refreshReservas(colaId);
         return true;
       }
       return false;

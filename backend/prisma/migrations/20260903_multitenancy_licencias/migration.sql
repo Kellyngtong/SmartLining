@@ -22,7 +22,7 @@ ALTER TABLE `turno` ADD COLUMN `peticion_especial` TEXT NULL;
 
 -- Seed: crear empresas por licencia de usuarios existentes
 INSERT INTO `empresa` (nombre, licencia) VALUES ('Empresa General SmartLining', 'GENERAL');
-INSERT INTO `empresa` (nombre, licencia) VALUES ('Restaurante El Buen Sabor', 'RESTAURANTE');
+INSERT INTO `empresa` (nombre, licencia) VALUES ('Restaurante El Cordero', 'RESTAURANTE');
 
 -- Asignar usuarios generales (id 1,2 del seed original) a empresa 1
 UPDATE `usuario` SET `id_empresa` = 1, `licencia` = 'GENERAL' WHERE `email` IN ('admin@smartlining.com', 'empleado1@smartlining.com');
