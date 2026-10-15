@@ -10,6 +10,7 @@ import {
   generarSlots,
   diaSemanaDeFecha,
   slotDateTime,
+  motivoCierre,
 } from '../utils/reserva-config';
 import { notificarConfirmada, notificarCambio, notificarCancelacion, emailValido } from '../services/reserva-notifier.service';
 import sse from '../sse';
@@ -91,6 +92,7 @@ router.get('/restaurantes/:colaId', async (req: Request, res: Response) => {
     const totalMesas = mesas.length;
     const libres = mesas.filter(m => m.estado === 'LIBRE').length;
     const capacidadMaxima = mesas.reduce((max, m) => Math.max(max, m.capacidad ?? 0), 0);
+    const cierreHoy = await motivoCierre(colaId, new Date());
 
     return res.json({
       success: true,
@@ -98,6 +100,8 @@ router.get('/restaurantes/:colaId', async (req: Request, res: Response) => {
         ...cola,
         mesas: { total: totalMesas, libres },
         capacidad_maxima: capacidadMaxima,
+        cerrado_hoy: cierreHoy !== null,
+        motivo_cierre: cierreHoy,
       },
     });
   } catch (error) {
@@ -196,6 +200,12 @@ router.post('/reservas', async (req: Request, res: Response) => {
 
     const config = await getReservaConfig(id_cola);
     const telefono = cliente_telefono?.trim() || null;
+
+    // --- Regla: día de cierre (inhabilita reservas) ---
+    const cierre = await motivoCierre(id_cola, fechaDate);
+    if (cierre) {
+      return res.status(400).json({ success: false, error: `Cerrado: ${cierre}` });
+    }
 
     // --- Regla: tope de comensales online ---
     if (num_comensales > config.max_comensales_online) {

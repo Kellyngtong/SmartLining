@@ -4,9 +4,9 @@ import { ActividadEntry } from '../../types';
 import '../../styles/restaurant.css';
 
 const ICONOS: Record<string, React.ReactNode> = {
-  MESA_ASIGNADA: <CheckCircle size={16} style={{ color: '#16a34a' }} />,
-  MESA_LIBERADA: <LogOut size={16} style={{ color: '#2563eb' }} />,
-  MESA_ESTADO: <Info size={16} style={{ color: '#d97706' }} />,
+  MESA_ASIGNADA: <CheckCircle size={16} className="t-ok" />,
+  MESA_LIBERADA: <LogOut size={16} className="t-info" />,
+  MESA_ESTADO: <Info size={16} className="t-warn" />,
 };
 
 const haceCuanto = (iso: string) => {
@@ -26,8 +26,8 @@ const horaCorta = (iso: string) => {
 const ActividadTab: React.FC<{ actividad: ActividadEntry[] }> = ({ actividad }) => {
   if (actividad.length === 0) {
     return (
-      <div className="cola-espera-card" style={{ textAlign: 'center', color: '#999' }}>
-        <History size={20} style={{ verticalAlign: 'middle', marginRight: 8 }} />
+      <div className="cola-espera-card rest-empty">
+        <History size={20} className="icon-inline" />
         Sin actividad registrada todavía. Las asignaciones y liberaciones aparecerán aquí.
       </div>
     );
@@ -38,10 +38,10 @@ const ActividadTab: React.FC<{ actividad: ActividadEntry[] }> = ({ actividad }) 
       <div className="cola-espera-list">
         {actividad.map(a => (
           <div key={a.id_actividad} className="cola-espera-item">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+            <div className="reserva-row-main">
               {ICONOS[a.tipo] || <History size={16} />}
               <div>
-                <div style={{ fontWeight: 600 }}>{a.descripcion}</div>
+                <div className="strong">{a.descripcion}</div>
                 <div className="turno-comensales">
                   {horaCorta(a.created_at)} · {haceCuanto(a.created_at)}
                 </div>

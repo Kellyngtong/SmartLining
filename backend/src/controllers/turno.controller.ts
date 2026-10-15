@@ -3,6 +3,7 @@ import prisma from '../config/prisma';
 import { TurnoRepository } from '../repositories/turno.repository';
 import { getPaginationParams, formatPaginatedResponse } from '../repositories/base.repository';
 import { logger } from '../config/logger';
+import { motivoCierre } from '../utils/reserva-config';
 
 const router = Router();
 const turnoRepo = new TurnoRepository(prisma);
@@ -221,6 +222,12 @@ router.post('/', async (req: Request, res: Response) => {
         success: false,
         error: 'Client not found',
       });
+    }
+
+    // Día de cierre: colas inhabilitadas
+    const cierreHoy = await motivoCierre(id_cola, new Date());
+    if (cierreHoy) {
+      return res.status(409).json({ success: false, error: `Cerrado hoy: ${cierreHoy}` });
     }
 
     const turno = await turnoRepo.create({

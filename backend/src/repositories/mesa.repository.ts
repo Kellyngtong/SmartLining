@@ -126,7 +126,7 @@ export class MesaRepository extends BaseRepository<
   }
 
   async update(id: number, data: UpdateMesaDTO): Promise<MesaRepositoryResult | null> {
-    return this.prisma.mesa
+    const updated = await this.prisma.mesa
       .update({
         where: { id_mesa: id },
         data: {
@@ -142,11 +142,35 @@ export class MesaRepository extends BaseRepository<
           ...(data.height !== undefined && { height: data.height }),
           ...(data.rotation !== undefined && { rotation: data.rotation }),
           ...(data.shape !== undefined && { shape: data.shape }),
-          ...(data.notas !== undefined && { notas: data.notas }),
+          ...(data.notas !== undefined && { notas: data.notas?.trim() || null }),
           ...(data.activa !== undefined && { activa: data.activa }),
         },
       })
       .catch(() => null);
+    if (!updated) return null;
+    // Si cambia la capacidad y la mesa está juntada, recalcular el total del grupo
+    if (data.capacidad !== undefined || data.capacidad_extra !== undefined) {
+      try {
+        const link = await this.prisma.mesaGrupoMesa.findFirst({
+          where: { id_mesa: id },
+          select: { id_grupo: true },
+        });
+        if (link) {
+          const miembros = await this.prisma.mesaGrupoMesa.findMany({
+            where: { id_grupo: link.id_grupo },
+            select: { id_mesa: true },
+          });
+          const todas = await this.prisma.mesa.findMany({
+            where: { id_mesa: { in: miembros.map((m) => m.id_mesa) } },
+          });
+          const total = todas.reduce((acc, m) => acc + this.getCapacidadEfectiva(m), 0);
+          await this.prisma.mesaGrupo.update({ where: { id_grupo: link.id_grupo }, data: { capacidad_total: total } });
+        }
+      } catch {
+        // no bloquea la edición si el recálculo falla
+      }
+    }
+    return updated;
   }
 
   async liberarMesa(id: number): Promise<MesaRepositoryResult | null> {
@@ -355,7 +379,10 @@ export class MesaRepository extends BaseRepository<
           where: { id_grupo: idGrupo },
           include: { mesas: true },
         });
-        const mesaIds = grupo?.mesas.map((m) => m.id_mesa) ?? [];
+        if (!grupo) throw new Error('Grupo no encontrado');
+        const mesaIds = grupo.mesas.map((m) => m.id_mesa);
+        // Primero los miembros (la FK no tiene ON DELETE CASCADE)
+        await tx.mesaGrupoMesa.deleteMany({ where: { id_grupo: idGrupo } });
         await tx.mesaGrupo.delete({ where: { id_grupo: idGrupo } });
         // Restaurar mesas del grupo que estén libres a LIBRE
         if (mesaIds.length > 0) {

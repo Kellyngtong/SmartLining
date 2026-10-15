@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, Link2, Armchair, Trash2, User } from 'lucide-react';
+import { Users, Link2, Armchair, Trash2, Pencil } from 'lucide-react';
 import { Mesa } from '../../models';
 import { OcupanteInfo } from '../../types';
 import '../../styles/restaurant.css';
@@ -10,6 +10,7 @@ interface MesaCardProps {
   onLiberar?: (mesa: Mesa) => void;
   onJuntar?: (mesa: Mesa) => void;
   onEliminar?: (mesa: Mesa) => void;
+  onEditar?: (mesa: Mesa) => void;
   selected?: boolean;
   ocupante?: OcupanteInfo | null;
 }
@@ -21,7 +22,7 @@ const estadoLabel: Record<string, string> = {
   AGRUPADA: 'Juntada',
 };
 
-const MesaCard: React.FC<MesaCardProps> = ({ mesa, onClick, onLiberar, onJuntar, onEliminar, selected, ocupante }) => {
+const MesaCard: React.FC<MesaCardProps> = ({ mesa, onClick, onLiberar, onJuntar, onEliminar, onEditar, selected, ocupante }) => {
   const estadoClass = mesa.estado.toLowerCase();
   const capacidadMostrada = mesa.capacidad_efectiva ?? mesa.getCapacidadEfectiva();
 
@@ -94,6 +95,16 @@ const MesaCard: React.FC<MesaCardProps> = ({ mesa, onClick, onLiberar, onJuntar,
               onClick={e => { e.stopPropagation(); onJuntar(mesa); }}
             >
               Juntar
+            </button>
+          )}
+          {onEditar && (
+            <button
+              className="btn-editar-card"
+              title={`Editar mesa ${mesa.numero}`}
+              aria-label={`Editar mesa ${mesa.numero}`}
+              onClick={e => { e.stopPropagation(); onEditar(mesa); }}
+            >
+              <Pencil size={14} />
             </button>
           )}
           {onEliminar && (

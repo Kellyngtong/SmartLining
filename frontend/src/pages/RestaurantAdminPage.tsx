@@ -564,8 +564,9 @@ const RestaurantAdminPage: React.FC = () => {
         </>
       )}
 
-      {tab === 'agenda' && (
+      {tab === 'agenda' && !isNaN(id) && (
         <AgendaTab
+          colaId={id}
           reservas={reservas}
           mesas={mesas}
           fecha={fechaReservas}

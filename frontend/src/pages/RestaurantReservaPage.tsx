@@ -53,6 +53,7 @@ const RestaurantReservaPage: React.FC = () => {
   const [disponibilidad, setDisponibilidad] = useState<Disponibilidad | null>(null);
   const [slots, setSlots] = useState<{ hora: string; disponible: boolean }[]>([]);
   const [slotsAbierto, setSlotsAbierto] = useState(true);
+  const [motivoCierre, setMotivoCierre] = useState<string | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -119,6 +120,7 @@ const RestaurantReservaPage: React.FC = () => {
         const data = res.data as any;
         setSlots(data?.slots || []);
         setSlotsAbierto(data?.abierto !== false);
+        setMotivoCierre((data as any)?.motivo || null);
         // Si el slot elegido ya no existe, limpiarlo
         if (form.hora_inicio && !(data?.slots || []).some((s: any) => s.hora === form.hora_inicio)) {
           setForm(f => ({ ...f, hora_inicio: '' }));
@@ -366,7 +368,9 @@ const RestaurantReservaPage: React.FC = () => {
                 <Clock size={14} /> Hora * {loadingSlots && <span className="spinner-rest" role="status" aria-label="Cargando horarios" style={{ width: 14, height: 14 }} />}
               </span>
               {!loadingSlots && !slotsAbierto && (
-                <p role="status" style={{ fontSize: '0.9rem', color: '#b91c1c' }}>Cerrado ese día. Elige otra fecha.</p>
+                <p role="status" style={{ fontSize: '0.9rem', color: '#b91c1c' }}>
+                  {motivoCierre ? `Cerrado: ${motivoCierre}.` : 'Cerrado ese día.'} Elige otra fecha.
+                </p>
               )}
               {!loadingSlots && slotsAbierto && slots.length === 0 && (
                 <p role="status" style={{ fontSize: '0.9rem', color: 'var(--color-text-secondary)' }}>No hay horarios disponibles ese día.</p>

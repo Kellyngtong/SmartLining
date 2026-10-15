@@ -6,6 +6,7 @@ import prisma from '../config/prisma';
 import sse from '../sse';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { TableAllocationService } from '../services/tableAllocation.service';
+import { motivoCierre } from '../utils/reserva-config';
 import { registrarActividad } from '../utils/actividad';
 import { notificarMesaLista } from '../services/reserva-notifier.service';
 
@@ -41,8 +42,8 @@ async function puedeAccederAMesa(mesaId: number, idEmpresa: number | undefined):
 // ==========================================
 router.get('/mesas/:colaId', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const colaId = parseInt(req.params.colaId as string);
-    if (isNaN(colaId)) {
+    const colaId = Number.parseInt(req.params.colaId as string);
+    if (Number.isNaN(colaId)) {
       return res.status(400).json({ success: false, error: 'Invalid cola ID' });
     }
     if (!(await puedeAccederACola(colaId, req.user?.id_empresa))) {
@@ -61,8 +62,8 @@ router.get('/mesas/:colaId', authMiddleware, async (req: Request, res: Response)
 // ==========================================
 router.get('/mesas/:colaId/libres', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const colaId = parseInt(req.params.colaId as string);
-    if (isNaN(colaId)) {
+    const colaId = Number.parseInt(req.params.colaId as string);
+    if (Number.isNaN(colaId)) {
       return res.status(400).json({ success: false, error: 'Invalid cola ID' });
     }
     if (!(await puedeAccederACola(colaId, req.user?.id_empresa))) {
@@ -104,8 +105,8 @@ router.post('/mesas', authMiddleware, async (req: Request, res: Response) => {
 // ==========================================
 router.put('/mesas/:id', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id as string);
-    if (isNaN(id)) {
+    const id = Number.parseInt(req.params.id as string);
+    if (Number.isNaN(id)) {
       return res.status(400).json({ success: false, error: 'Invalid mesa ID' });
     }
     if (!(await puedeAccederAMesa(id, req.user?.id_empresa))) {
@@ -153,9 +154,9 @@ const ACCIONES_ESTADO: Record<string, MesaEstado> = {
 
 router.post('/mesas/:id/:accion', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id as string);
+    const id = Number.parseInt(req.params.id as string);
     const accion = req.params.accion as string;
-    if (isNaN(id)) {
+    if (Number.isNaN(id)) {
       return res.status(400).json({ success: false, error: 'Invalid mesa ID' });
     }
     const nuevoEstado = ACCIONES_ESTADO[accion];
@@ -202,8 +203,8 @@ router.post('/mesas/:id/:accion', authMiddleware, async (req: Request, res: Resp
 // ==========================================
 router.get('/mesas/:id/historial', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id as string);
-    if (isNaN(id)) {
+    const id = Number.parseInt(req.params.id as string);
+    if (Number.isNaN(id)) {
       return res.status(400).json({ success: false, error: 'Invalid mesa ID' });
     }
     if (!(await puedeAccederAMesa(id, req.user?.id_empresa))) {
@@ -226,8 +227,8 @@ router.get('/mesas/:id/historial', authMiddleware, async (req: Request, res: Res
 // ==========================================
 router.delete('/mesas/:id', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const id = parseInt(req.params.id as string);
-    if (isNaN(id)) {
+    const id = Number.parseInt(req.params.id as string);
+    if (Number.isNaN(id)) {
       return res.status(400).json({ success: false, error: 'Invalid mesa ID' });
     }
     if (!(await puedeAccederAMesa(id, req.user?.id_empresa))) {
@@ -266,9 +267,9 @@ router.delete('/mesas/:id', authMiddleware, async (req: Request, res: Response) 
 // ==========================================
 router.post('/asignar/:mesaId/:turnoId', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const mesaId = parseInt(req.params.mesaId as string);
-    const turnoId = parseInt(req.params.turnoId as string);
-    if (isNaN(mesaId) || isNaN(turnoId)) {
+    const mesaId = Number.parseInt(req.params.mesaId as string);
+    const turnoId = Number.parseInt(req.params.turnoId as string);
+    if (Number.isNaN(mesaId) || Number.isNaN(turnoId)) {
       return res.status(400).json({ success: false, error: 'Invalid mesa or turno ID' });
     }
     if (!(await puedeAccederAMesa(mesaId, req.user?.id_empresa))) {
@@ -364,8 +365,8 @@ router.post('/asignar/:mesaId/:turnoId', authMiddleware, async (req: Request, re
 // ==========================================
 router.post('/liberar/:mesaId', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const mesaId = parseInt(req.params.mesaId as string);
-    if (isNaN(mesaId)) {
+    const mesaId = Number.parseInt(req.params.mesaId as string);
+    if (Number.isNaN(mesaId)) {
       return res.status(400).json({ success: false, error: 'Invalid mesa ID' });
     }
     if (!(await puedeAccederAMesa(mesaId, req.user?.id_empresa))) {
@@ -405,7 +406,10 @@ router.post('/liberar/:mesaId', authMiddleware, async (req: Request, res: Respon
     let grupoDisuelto = false;
     if (grupo) {
       if (restablecer) {
-        await mesaRepo.deleteGrupo(grupo.id_grupo); // devuelve las mesas AGRUPADA a LIBRE
+        const disuelto = await mesaRepo.deleteGrupo(grupo.id_grupo); // devuelve las mesas AGRUPADA a LIBRE
+        if (!disuelto) {
+          return res.status(500).json({ success: false, error: 'No se pudo disolver el grupo' });
+        }
         // La mesa principal estaba OCUPADA sirviendo a un grupo: liberarla explícitamente
         if (mesa.estado === 'OCUPADA') {
           await mesaRepo.liberarMesa(mesaId);
@@ -561,8 +565,8 @@ router.post('/liberar/:mesaId', authMiddleware, async (req: Request, res: Respon
 // ==========================================
 router.get('/cola-activa/:colaId', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const colaId = parseInt(req.params.colaId as string);
-    if (isNaN(colaId)) {
+    const colaId = Number.parseInt(req.params.colaId as string);
+    if (Number.isNaN(colaId)) {
       return res.status(400).json({ success: false, error: 'Invalid cola ID' });
     }
     if (!(await puedeAccederACola(colaId, req.user?.id_empresa))) {
@@ -710,14 +714,14 @@ router.get('/cola-activa/:colaId', authMiddleware, async (req: Request, res: Res
 // ==========================================
 router.get('/actividad/:colaId', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const colaId = parseInt(req.params.colaId as string);
-    if (isNaN(colaId)) {
+    const colaId = Number.parseInt(req.params.colaId as string);
+    if (Number.isNaN(colaId)) {
       return res.status(400).json({ success: false, error: 'Invalid cola ID' });
     }
     if (!(await puedeAccederACola(colaId, req.user?.id_empresa))) {
       return res.status(403).json({ success: false, error: 'Access denied: cola belongs to another tenant' });
     }
-    const limit = Math.min(parseInt(req.query.limit as string, 10) || 50, 200);
+    const limit = Math.min(Number.parseInt(req.query.limit as string, 10) || 50, 200);
     const actividad = await prisma.actividadLog.findMany({
       where: { id_cola: colaId },
       orderBy: { created_at: 'desc' },
@@ -756,6 +760,12 @@ router.post('/turno', async (req: Request, res: Response) => {
     const cola = await prisma.cola.findUnique({ where: { id_cola } });
     if (!cola) {
       return res.status(404).json({ success: false, error: 'Queue not found' });
+    }
+
+    // Día de cierre: colas inhabilitadas
+    const cierreHoy = await motivoCierre(id_cola, new Date());
+    if (cierreHoy) {
+      return res.status(409).json({ success: false, error: `Cerrado hoy: ${cierreHoy}` });
     }
 
     // Obtener max capacidad del restaurante
@@ -943,8 +953,8 @@ router.post('/juntar', authMiddleware, async (req: Request, res: Response) => {
 // ==========================================
 router.post('/separar/:mesaId', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const mesaId = parseInt(req.params.mesaId as string);
-    if (isNaN(mesaId)) {
+    const mesaId = Number.parseInt(req.params.mesaId as string);
+    if (Number.isNaN(mesaId)) {
       return res.status(400).json({ success: false, error: 'Invalid mesa ID' });
     }
     if (!(await puedeAccederAMesa(mesaId, req.user?.id_empresa))) {
@@ -958,7 +968,10 @@ router.post('/separar/:mesaId', authMiddleware, async (req: Request, res: Respon
     if (!grupo) {
       return res.status(409).json({ success: false, error: 'La mesa no pertenece a un grupo' });
     }
-    await mesaRepo.deleteGrupo(grupo.id_grupo);
+    const ok = await mesaRepo.deleteGrupo(grupo.id_grupo);
+    if (!ok) {
+      return res.status(500).json({ success: false, error: 'No se pudo disolver el grupo' });
+    }
 
     try {
       sse.sendSseEvent(mesa.id_cola, 'MESA_SEPARADA', { mesaId, grupoId: grupo.id_grupo });
@@ -979,9 +992,9 @@ router.post('/separar/:mesaId', authMiddleware, async (req: Request, res: Respon
 // ==========================================
 router.post('/silla/:mesaId/:cantidad', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const mesaId = parseInt(req.params.mesaId as string);
-    const cantidad = parseInt(req.params.cantidad as string);
-    if (isNaN(mesaId) || isNaN(cantidad) || cantidad === 0) {
+    const mesaId = Number.parseInt(req.params.mesaId as string);
+    const cantidad = Number.parseInt(req.params.cantidad as string);
+    if (Number.isNaN(mesaId) || Number.isNaN(cantidad) || cantidad === 0) {
       return res.status(400).json({ success: false, error: 'Invalid mesa ID or cantidad' });
     }
     if (!(await puedeAccederAMesa(mesaId, req.user?.id_empresa))) {
@@ -1024,8 +1037,8 @@ router.post('/silla/:mesaId/:cantidad', authMiddleware, async (req: Request, res
 // ==========================================
 router.get('/stats/:colaId', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const colaId = parseInt(req.params.colaId as string);
-    if (isNaN(colaId)) {
+    const colaId = Number.parseInt(req.params.colaId as string);
+    if (Number.isNaN(colaId)) {
       return res.status(400).json({ success: false, error: 'Invalid cola ID' });
     }
     if (!(await puedeAccederACola(colaId, req.user?.id_empresa))) {
@@ -1087,10 +1100,10 @@ router.get('/stats/:colaId', authMiddleware, async (req: Request, res: Response)
 // ==========================================
 router.patch('/turno/:turnoId', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const turnoId = parseInt(req.params.turnoId as string);
+    const turnoId = Number.parseInt(req.params.turnoId as string);
     const { num_comensales, peticion_especial, estado } = req.body;
 
-    if (isNaN(turnoId)) {
+    if (Number.isNaN(turnoId)) {
       return res.status(400).json({ success: false, error: 'Invalid turno ID' });
     }
 
@@ -1136,9 +1149,9 @@ router.patch('/turno/:turnoId', authMiddleware, async (req: Request, res: Respon
 // ==========================================
 router.delete('/turno/:turnoId', authMiddleware, async (req: Request, res: Response) => {
   try {
-    const turnoId = parseInt(req.params.turnoId as string);
+    const turnoId = Number.parseInt(req.params.turnoId as string);
 
-    if (isNaN(turnoId)) {
+    if (Number.isNaN(turnoId)) {
       return res.status(400).json({ success: false, error: 'Invalid turno ID' });
     }
 

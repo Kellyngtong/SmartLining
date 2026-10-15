@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, Link2, User } from 'lucide-react';
+import { Users, Link2, Pencil } from 'lucide-react';
 import { MesaGrupoAgrupado } from '../../models/mesaGrupos';
 import { OcupanteInfo } from '../../types';
 import '../../styles/restaurant.css';
@@ -7,11 +7,12 @@ import '../../styles/restaurant.css';
 interface MesaGrupoCardProps {
   grupo: MesaGrupoAgrupado;
   onLiberar?: (grupo: MesaGrupoAgrupado) => void;
+  onEditar?: (grupo: MesaGrupoAgrupado) => void;
   selected?: boolean;
   ocupante?: OcupanteInfo | null;
 }
 
-const MesaGrupoCard: React.FC<MesaGrupoCardProps> = ({ grupo, onLiberar, selected, ocupante }) => {
+const MesaGrupoCard: React.FC<MesaGrupoCardProps> = ({ grupo, onLiberar, onEditar, selected, ocupante }) => {
   const estadoClass = grupo.miembroOcupado ? 'ocupada' : 'libre';
   const label = grupo.miembroOcupado ? 'Ocupada' : 'Juntada';
 
@@ -41,14 +42,26 @@ const MesaGrupoCard: React.FC<MesaGrupoCardProps> = ({ grupo, onLiberar, selecte
 
       <div className="mesa-card-bottom">
         <div className={`mesa-status ${estadoClass}`}>{label}</div>
-        {grupo.miembroOcupado && onLiberar && (
-          <button
-            className="btn-liberar-card"
-            onClick={e => { e.stopPropagation(); onLiberar(grupo); }}
-          >
-            Liberar
-          </button>
-        )}
+        <div className="mesa-card-actions">
+          {onEditar && (
+            <button
+              className="btn-editar-card"
+              title={`Editar mesa ${grupo.representante.numero}`}
+              aria-label={`Editar mesa ${grupo.representante.numero}`}
+              onClick={e => { e.stopPropagation(); onEditar(grupo); }}
+            >
+              <Pencil size={14} />
+            </button>
+          )}
+          {grupo.miembroOcupado && onLiberar && (
+            <button
+              className="btn-liberar-card"
+              onClick={e => { e.stopPropagation(); onLiberar(grupo); }}
+            >
+              Liberar
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

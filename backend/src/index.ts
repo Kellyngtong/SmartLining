@@ -33,6 +33,7 @@ import salaController from './controllers/sala.controller';
 import publicRestaurantController from './controllers/publicRestaurant.controller';
 import reservaConfigController from './controllers/reservaConfig.controller';
 import resenaEnlaceController from './controllers/resenaEnlace.controller';
+import diaCierreController from './controllers/diaCierre.controller';
 import { startComunicacionesScheduler } from './jobs/comunicaciones.job';
 
 const app = express();
@@ -171,6 +172,7 @@ app.use('/api/restaurant', salaController);
 app.use('/api/restaurant/public', publicRestaurantController);
 app.use('/api/restaurant', reservaConfigController);
 app.use('/api/restaurant', resenaEnlaceController);
+app.use('/api/restaurant', diaCierreController);
 
 // Debug helpers: collect routes including parent mount prefixes
 function collectRoutes(appInstance: any) {

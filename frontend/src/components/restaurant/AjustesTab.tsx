@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Save, Plus, Trash2, Clock, Mail, Send, Smartphone, Monitor, RefreshCw, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Save, Plus, Trash2, Clock, Mail, Send, Smartphone, Monitor, RefreshCw, CheckCircle, AlertTriangle, Ban } from 'lucide-react';
 import { apiClient } from '../../services/api';
 import '../../styles/restaurant.css';
 
@@ -229,6 +229,54 @@ const AjustesTab: React.FC<{ colaId: number }> = ({ colaId }) => {
     try {
       await apiClient.deleteHorarioCola(id);
       await cargar();
+    } catch (e) {
+      setMensaje('No se pudo eliminar');
+    }
+  };
+
+  const [cierres, setCierres] = useState<{ id_cierre: number; fecha: string; motivo: string | null }[]>([]);
+  const [nuevoCierre, setNuevoCierre] = useState({ fecha: '', motivo: '' });
+
+  const cargarCierres = async () => {
+    try {
+      const res = await apiClient.getDiasCierre(colaId);
+      setCierres((res.data as any[]) || []);
+    } catch (e) {
+      console.error('Error loading cierres', e);
+    }
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    cargarCierres();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [colaId]);
+
+  const fmtCierre = (iso: string) => {
+    const d = new Date(iso);
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  };
+
+  const crearCierre = async () => {
+    if (!nuevoCierre.fecha) return;
+    try {
+      await apiClient.createDiaCierre(colaId, {
+        fecha: nuevoCierre.fecha,
+        ...(nuevoCierre.motivo.trim() ? { motivo: nuevoCierre.motivo.trim() } : {}),
+      });
+      setNuevoCierre({ fecha: '', motivo: '' });
+      setMensaje('Día de cierre añadido: colas y reservas inhabilitadas ese día');
+      await cargarCierres();
+    } catch (e: any) {
+      setMensaje(e?.response?.data?.error || 'No se pudo añadir el cierre');
+    }
+  };
+
+  const borrarCierre = async (id: number) => {
+    if (!window.confirm('¿Eliminar este día de cierre? Se rehabilitarán colas y reservas.')) return;
+    try {
+      await apiClient.deleteDiaCierre(id);
+      await cargarCierres();
     } catch (e) {
       setMensaje('No se pudo eliminar');
     }
@@ -532,6 +580,49 @@ const AjustesTab: React.FC<{ colaId: number }> = ({ colaId }) => {
           </label>
           <button className="btn-restaurant" onClick={crearHorario} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
             <Plus size={16} /> Añadir
+          </button>
+        </div>
+      </div>
+
+      <div className="panel" style={{ marginBottom: 16 }}>
+        <h3><Ban size={18} /> Días de cierre (festivos)</h3>
+        <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginTop: -8, marginBottom: 12 }}>
+          En estos días se inhabilitan las colas y las reservas (online y QR).
+        </p>
+        {cierres.length === 0 ? (
+          <p style={{ color: '#999' }}>Sin días de cierre programados</p>
+        ) : (
+          <div className="cola-espera-list" style={{ marginBottom: 16 }}>
+            {cierres.map(c => (
+              <div key={c.id_cierre} className="cola-espera-item">
+                <div>
+                  <strong>{fmtCierre(c.fecha)}</strong>
+                  {c.motivo && <span style={{ color: 'var(--color-text-secondary)', marginLeft: 8 }}>{c.motivo}</span>}
+                </div>
+                <button className="btn-ghost-rest" style={{ color: '#b91c1c' }} onClick={() => borrarCierre(c.id_cierre)} aria-label={`Eliminar cierre del ${fmtCierre(c.fecha)}`}>
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
+            Fecha
+            <input type="date" value={nuevoCierre.fecha} onChange={e => setNuevoCierre({ ...nuevoCierre, fecha: e.target.value })} style={{ padding: 10, border: '1px solid #ddd', borderRadius: 8 }} />
+          </label>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.85rem', color: 'var(--color-text-secondary)', flex: 1, minWidth: 180 }}>
+            Motivo (opcional)
+            <input
+              value={nuevoCierre.motivo}
+              onChange={e => setNuevoCierre({ ...nuevoCierre, motivo: e.target.value })}
+              placeholder="Ej.: Fiesta local"
+              maxLength={150}
+              style={{ padding: 10, border: '1px solid #ddd', borderRadius: 8 }}
+            />
+          </label>
+          <button className="btn-restaurant" onClick={crearCierre} disabled={!nuevoCierre.fecha} style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <Plus size={16} /> Añadir cierre
           </button>
         </div>
       </div>

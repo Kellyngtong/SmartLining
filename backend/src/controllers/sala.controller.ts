@@ -201,4 +201,64 @@ router.get('/dashboard/:colaId', authMiddleware, async (req: Request, res: Respo
   }
 });
 
+// ==========================================
+// GET /api/restaurant/agenda-resumen/:colaId?mes=YYYY-MM
+// Conteo de reservas por día + festivos del mes (para el calendario)
+// ==========================================
+router.get('/agenda-resumen/:colaId', authMiddleware, async (req: Request, res: Response) => {
+  try {
+    const colaId = parseInt(req.params.colaId as string);
+    if (isNaN(colaId)) {
+      return res.status(400).json({ success: false, error: 'Invalid cola ID' });
+    }
+    if (!(await puedeAccederACola(colaId, req.user?.id_empresa))) {
+      return res.status(403).json({ success: false, error: 'Access denied: cola belongs to another tenant' });
+    }
+    const mesParam = (req.query.mes as string) || new Date().toISOString().slice(0, 7);
+    const m = /^(\d{4})-(\d{2})$/.exec(mesParam);
+    if (!m) return res.status(400).json({ success: false, error: 'mes must be YYYY-MM' });
+    const inicio = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, 1, 0, 0, 0, 0);
+    const fin = new Date(parseInt(m[1], 10), parseInt(m[2], 10), 1, 0, 0, 0, 0);
+
+    const [reservas, cierres] = await Promise.all([
+      prisma.reserva.findMany({
+        // Solo reservas vivas: las procesadas/finalizadas no pintan en la agenda
+        where: {
+          id_cola: colaId,
+          fecha: { gte: inicio, lt: fin },
+          estado: { notIn: ['COMPLETADA', 'CANCELADA', 'NO_SHOW'] },
+        },
+        select: { fecha: true, estado: true },
+      }),
+      prisma.diaCierre.findMany({
+        where: { id_cola: colaId, fecha: { gte: inicio, lt: fin } },
+        orderBy: { fecha: 'asc' },
+      }),
+    ]);
+
+    const dias: Record<string, { reservas: number; pendientes: number }> = {};
+    for (const r of reservas) {
+      const key = r.fecha.toISOString().slice(0, 10);
+      if (!dias[key]) dias[key] = { reservas: 0, pendientes: 0 };
+      dias[key].reservas++;
+      if (r.estado === 'PENDIENTE' || r.estado === 'CONFIRMADA') dias[key].pendientes++;
+    }
+    return res.json({
+      success: true,
+      data: {
+        mes: mesParam,
+        dias,
+        festivos: cierres.map(c => ({
+          id_cierre: c.id_cierre,
+          fecha: c.fecha.toISOString().slice(0, 10),
+          motivo: c.motivo,
+        })),
+      },
+    });
+  } catch (error) {
+    logger.error('Error fetching agenda resumen:', error);
+    return res.status(500).json({ success: false, error: 'Error fetching resumen' });
+  }
+});
+
 export default router;

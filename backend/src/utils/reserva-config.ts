@@ -72,6 +72,25 @@ export function diaSemanaDeFecha(fecha: Date): string {
   return DIAS[fecha.getDay()];
 }
 
+function inicioDia(fecha: Date): Date {
+  const d = new Date(fecha);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/**
+ * Devuelve el motivo de cierre si la fecha es día de cierre, o null.
+ */
+export async function motivoCierre(colaId: number, fecha: Date): Promise<string | null> {
+  const dia = inicioDia(fecha);
+  const cierre = await prisma.diaCierre.findFirst({
+    where: { id_cola: colaId, fecha: dia },
+    select: { motivo: true },
+  });
+  if (!cierre) return null;
+  return cierre.motivo?.trim() || 'Cerrado';
+}
+
 export function slotDateTime(fecha: Date, horaStr: string): Date {
   const [h, m] = horaStr.split(':').map(Number);
   const d = new Date(fecha);
@@ -97,9 +116,14 @@ export async function generarSlots(
   fecha: Date,
   comensales: number,
   allocationService?: TableAllocationService
-): Promise<{ slots: SlotInfo[]; config: ReservaConfigEfectiva; abierto: boolean }> {
+): Promise<{ slots: SlotInfo[]; config: ReservaConfigEfectiva; abierto: boolean; motivo?: string | null }> {
   const config = await getReservaConfig(colaId);
   const allocation = allocationService ?? new TableAllocationService(prisma, new MesaRepository(prisma));
+
+  const cierre = await motivoCierre(colaId, fecha);
+  if (cierre) {
+    return { slots: [], config, abierto: false, motivo: cierre };
+  }
 
   const horarios = await prisma.horarioCola.findMany({
     where: { id_cola: colaId, dia_semana: diaSemanaDeFecha(fecha) as any },

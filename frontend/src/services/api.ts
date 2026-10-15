@@ -526,6 +526,23 @@ class ApiClient {
     return this.delete(`/restaurant/resena-enlaces/${id}`);
   }
 
+  async getDiasCierre(colaId: number) {
+    return this.get(`/restaurant/dias-cierre/${colaId}`);
+  }
+
+  async createDiaCierre(colaId: number, data: { fecha: string; motivo?: string }) {
+    return this.post(`/restaurant/dias-cierre/${colaId}`, data);
+  }
+
+  async deleteDiaCierre(id: number) {
+    return this.delete(`/restaurant/dias-cierre/${id}`);
+  }
+
+  async getAgendaResumen(colaId: number, mes: string) {
+    const response = await this.instance.get(`/restaurant/agenda-resumen/${colaId}`, { params: { mes } });
+    return response.data;
+  }
+
   async getClienteHistorial(colaId: number, telefono: string) {
     const response = await this.instance.get('/restaurant/clientes-historial', { params: { colaId, telefono } });
     return response.data;

@@ -133,6 +133,7 @@ model Cola {
   actividad ActividadLog[]
   emailLogs EmailLog[]
   resenaEnlaces ResenaEnlace[]
+  diasCierre DiaCierre[]
 
   @@map("cola")
 }
@@ -683,6 +684,23 @@ model ResenaEnlace {
 
   @@index([id_cola, orden])
   @@map("resena_enlace")
+}
+
+// ========================
+// DÍAS DE CIERRE (festivos / no apertura)
+// ========================
+// Configurables por admin. En estos días se inhabilitan colas y reservas.
+model DiaCierre {
+  id_cierre  Int      @id @default(autoincrement())
+  id_cola    Int
+  fecha      DateTime @db.Date()
+  motivo     String?  @db.VarChar(150)
+  created_at DateTime @default(now())
+
+  cola Cola @relation(fields: [id_cola], references: [id_cola], onDelete: Cascade)
+
+  @@unique([id_cola, fecha])
+  @@map("dia_cierre")
 }
 
 // ========================

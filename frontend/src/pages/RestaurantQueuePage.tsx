@@ -18,6 +18,7 @@ const RestaurantQueuePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [colaNombre, setColaNombre] = useState('Restaurante');
   const [capacidadMax, setCapacidadMax] = useState(0);
+  const [cerrado, setCerrado] = useState<string | null>(null);
 
   const emailOk = email.trim() === '' || /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
 
@@ -44,6 +45,7 @@ const RestaurantQueuePage: React.FC = () => {
         apiClient.getPublicRestaurante(id).then(res => {
           const data = res.data as any;
           if (data?.capacidad_maxima) setCapacidadMax(data.capacidad_maxima);
+          if (data?.cerrado_hoy) setCerrado(data?.motivo_cierre || 'Cerrado hoy');
         }).catch(() => {});
       }
     }
@@ -95,6 +97,11 @@ const RestaurantQueuePage: React.FC = () => {
       </div>
 
       <div className="comensales-form">
+        {cerrado && (
+          <div role="alert" style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', borderRadius: 10, padding: '12px 14px', marginBottom: 16, fontWeight: 600 }}>
+            Cerrado hoy{cerrado !== 'Cerrado hoy' ? `: ${cerrado}` : ''}. La cola está inhabilitada.
+          </div>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
           <Users size={22} style={{ color: 'var(--sl-amber)' }} />
           <h2 style={{ margin: 0 }}>¿Cuántos sois?</h2>
@@ -172,7 +179,7 @@ const RestaurantQueuePage: React.FC = () => {
           className="btn-restaurant yellow"
           style={{ width: '100%', padding: '14px', fontSize: '1.1rem', marginTop: 16 }}
           onClick={handleSubmit}
-          disabled={loading || !emailOk}
+          disabled={loading || !emailOk || !!cerrado}
         >
           {loading ? <span className="spinner-rest" role="status" aria-label="Registrando" /> : 'Entrar en la cola'}
         </button>
